@@ -1,19 +1,25 @@
 use iced::{widget, Task, Element};
 
 use crate::error::Error;
-use crate::player::Player;
-use crate::remote::RemoteMsg;
+use crate::player::{Player, PlayerMsg};
+use crate::remote::{Remote, RemoteMsg, mpd_command};
 
 #[derive(Debug, Clone)]
 pub enum AppMsg {
     Reconnect,
     Remote(Result<RemoteMsg, Error>),
+    Player(PlayerMsg),
 }
 
 
 pub enum App {
     Unconnected,
-    Connected(Player),
+
+    Connected {
+        player: Player,
+        client: mpd_client::Client,
+    },
+
     Error(Error),
 }
 
@@ -23,17 +29,14 @@ impl App {
     }
 
     fn connect() -> Task<AppMsg> {
-        use iced::stream::try_channel;
-        use crate::remote::task_handle_mpd;
-
-        Task::stream(try_channel(1, task_handle_mpd))
+        Remote::start()
             .map(AppMsg::Remote)
     }
 
     pub fn title(&self) -> String {
         let title = match self {
             Self::Unconnected => "Unconnected",
-            Self::Connected(_) => "Connected",
+            Self::Connected { .. } => "Connected",
             Self::Error(_) => "Error",
         };
 
@@ -48,28 +51,14 @@ impl App {
             }
 
             AppMsg::Remote(Ok(msg)) => match msg {
-                RemoteMsg::Connected(_client) => {
-                    *self = Self::Connected(Player::default());
+                RemoteMsg::Connected(client) => {
+                    *self = Self::Connected { client, player: Player::default() };
                     Task::none()
-                }
-
-                RemoteMsg::Disconnect => {
-                    // Maybe a reconnect screen would be better
-                    *self = Self::Unconnected;
-                    Self::connect()
                 }
 
                 RemoteMsg::Song(info) => {
                     match self {
-                        Self::Connected(player) => player.update_song(info),
-                        _ => (),
-                    }
-                    Task::none()
-                }
-
-                RemoteMsg::NoSong => {
-                    match self {
-                        Self::Connected(player) => player.clear_song(),
+                        Self::Connected { player, .. } => player.update_song(info),
                         _ => (),
                     }
                     Task::none()
@@ -80,18 +69,42 @@ impl App {
                 *self = Self::Error(error);
                 Task::none()
             }
+
+
+            AppMsg::Player(msg) => {
+                use mpd_client::commands;
+
+                let Self::Connected { client, .. } = self else {
+                    return Task::none();
+                };
+
+                let cc = client.clone();
+
+                match msg {
+                    PlayerMsg::Play => {
+                        let _ = tokio::spawn(mpd_command(cc, commands::SetPause(true)));
+                    }
+                    PlayerMsg::Prev => {
+                        let _ = tokio::spawn(mpd_command(cc, commands::Previous));
+                    }
+                    PlayerMsg::Next => {
+                        let _ = tokio::spawn(mpd_command(cc, commands::Next));
+                    }
+                }
+
+                Task::none()
+            }
         }
     }
 
 
     pub fn view(&self) -> Element<AppMsg> {
-        tracing::info!("view called");
         let content: Element<_> = match self {
             Self::Unconnected => {
                 widget::text("Connecting").size(20).into()
             }
 
-            Self::Connected(player) => player.view(),
+            Self::Connected { player, .. } => player.view().map(AppMsg::Player),
 
             Self::Error(error) => widget::column![
                 widget::text("Can't connect to MPD").size(20),

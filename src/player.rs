@@ -1,8 +1,13 @@
 use iced::Element;
 
-use crate::app::AppMsg;
 use crate::remote::SongInfo;
 
+#[derive(Debug, Clone)]
+pub enum PlayerMsg {
+    Play,
+    Prev,
+    Next,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct Player {
@@ -10,22 +15,22 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn clear_song(&mut self) {
-        tracing::info!("no song registered");
-        self.song = None;
-    }
-
-    pub fn update_song(&mut self, song: SongInfo) {
+    pub fn update_song(&mut self, song: Option<SongInfo>) {
         tracing::info!("song updated: {song:?}");
-        self.song = Some(song);
+        self.song = song;
     }
 
-    pub fn view(&self) -> Element<AppMsg> {
-        use iced::{widget, font, Font, Center};
+    pub fn view(&self) -> Element<PlayerMsg> {
+        use iced::{widget, font, widget::image, Font, Center};
+
+        let artwork = self.song.as_ref()
+            .and_then(|nfo| nfo.album_art.clone())
+            .map(|h| image::viewer(h).width(200));
+
         let song_description: Element<_> = match self.song.as_ref() {
             Some(info) => {
                 let title = widget::text(&info.title)
-                    .size(40)
+                    .size(25)
                     .font(Font { weight: font::Weight::Bold, ..Font::default() });
                 let artist = widget::text(&info.artist)
                     .size(20);
@@ -40,7 +45,7 @@ impl Player {
             }
 
             None => {
-                widget::text("No song loaded")
+                widget::text("Queue Finished")
                     .size(40)
                     .align_x(Center)
                     .into()
@@ -48,15 +53,17 @@ impl Player {
         };
 
         let buttons = widget::row![
-            widget::button("prev"),
-            widget::button("play"),
-            widget::button("next"),
+            widget::button("prev").on_press(PlayerMsg::Prev),
+            widget::button("play").on_press(PlayerMsg::Play),
+            widget::button("next").on_press(PlayerMsg::Next),
         ].spacing(30);
 
-
-        widget::column![
-            song_description,
-            buttons,
-        ].spacing(50).align_x(Center).into()
+        widget::Column::new()
+            .spacing(50)
+            .align_x(Center)
+            .push_maybe(artwork)
+            .push(song_description)
+            .push(buttons)
+            .into()
     }
 }

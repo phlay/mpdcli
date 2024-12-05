@@ -3,6 +3,7 @@ use futures_channel::mpsc;
 use mpd_client::{
     protocol::MpdProtocolError,
     client::CommandError,
+    client::ConnectionError,
 };
 
 #[derive(Clone, Debug)]
@@ -11,6 +12,7 @@ pub enum Error {
     Mpd(String),
     InvalidQueue,
     SendError(mpsc::SendError),
+    Disconnect,
 }
 
 
@@ -21,6 +23,7 @@ impl fmt::Display for Error {
             Self::Mpd(msg) => write!(f, "mpd error: {msg}"),
             Self::InvalidQueue => write!(f, "queue error in mpd"),
             Self::SendError(error) => write!(f, "send to channel: {error}"),
+            Self::Disconnect => write!(f, "connection to mpd was disconnected"),
         }
     }
 }
@@ -42,6 +45,12 @@ impl From<MpdProtocolError> for Error {
 
 impl From<CommandError> for Error {
     fn from(error: CommandError) -> Self {
+        Self::Mpd(error.to_string())
+    }
+}
+
+impl From<ConnectionError> for Error {
+    fn from(error: ConnectionError) -> Self {
         Self::Mpd(error.to_string())
     }
 }
