@@ -1,0 +1,12 @@
+[package]
+name = "player"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tokio = { version = "1.42", features = ["full"] }
+iced = { path = "/home/phlay/sw/src/rust/ui/iced", features = ["image", "tokio"] }
+mpd_client = "1.4"
+futures-channel = "0.3.30"
