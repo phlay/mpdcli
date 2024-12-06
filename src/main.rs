@@ -1,5 +1,5 @@
 mod error;
-mod remote;
+mod mpd;
 mod player;
 mod app;
 

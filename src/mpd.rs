@@ -24,21 +24,22 @@ pub struct SongInfo {
 }
 
 #[derive(Debug, Clone)]
-pub enum RemoteMsg {
+pub enum MpdMsg {
     Connected(Client),
     Song(Option<SongInfo>),
 }
 
-pub struct Remote {
+pub struct Mpd {
     client: Client,
     events: ConnectionEvents,
     queue: Vec<SongInQueue>,
 }
 
-impl Remote {
+impl Mpd {
     const TARGET: &str = "localhost:6600";
+    const BINARY_LIMIT: usize = 655360;
 
-    pub fn start() -> Task<Result<RemoteMsg, Error>> {
+    pub fn start() -> Task<Result<MpdMsg, Error>> {
         Task::stream(iced::stream::try_channel(1, |tx| async {
             Self::open()
                 .await?
@@ -54,19 +55,24 @@ impl Remote {
         let (client, events) = Client::connect(stream).await?;
         let queue = client.command(commands::Queue::all()).await?;
 
-        Ok(Remote { client, events, queue })
+        Ok(Mpd { client, events, queue })
     }
 
-    async fn run(mut self, mut tx: mpsc::Sender<RemoteMsg>) -> Result<(), Error> {
+    async fn run(mut self, mut tx: mpsc::Sender<MpdMsg>) -> Result<(), Error> {
         use iced::futures::SinkExt;
-        use mpd_client::client::ConnectionEvent;
+        use mpd_client::{
+            commands,
+            client::ConnectionEvent,
+        };
 
         // inform user, that we are connected and hand out a client structure
-        tx.send(RemoteMsg::Connected(self.client.clone())).await?;
+        tx.send(MpdMsg::Connected(self.client.clone())).await?;
 
         // load initial information bevor waiting for change
         let info = self.get_song_info().await?;
-        tx.send(RemoteMsg::Song(info)).await?;
+        tx.send(MpdMsg::Song(info)).await?;
+
+        self.client.command(commands::SetBinaryLimit(Self::BINARY_LIMIT)).await?;
 
         // listen for further events from mpd
         while let Some(ev) = self.events.next().await {
@@ -85,7 +91,7 @@ impl Remote {
     async fn subsystem_change(
         &mut self,
         subsystem: Subsystem,
-        tx: &mut mpsc::Sender<RemoteMsg>,
+        tx: &mut mpsc::Sender<MpdMsg>,
     ) -> Result<(), Error> {
         use iced::futures::SinkExt;
         use mpd_client::commands;
@@ -108,7 +114,7 @@ impl Remote {
             Subsystem::Player => {
                 tracing::info!("player change");
                 let info = self.get_song_info().await?;
-                tx.send(RemoteMsg::Song(info)).await?;
+                tx.send(MpdMsg::Song(info)).await?;
             }
 
             _ => {

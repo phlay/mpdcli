@@ -1,6 +1,6 @@
 use iced::Element;
 
-use crate::remote::SongInfo;
+use crate::mpd::SongInfo;
 
 #[derive(Debug, Clone)]
 pub enum PlayerMsg {
@@ -25,7 +25,7 @@ impl Player {
 
         let artwork = self.song.as_ref()
             .and_then(|nfo| nfo.album_art.clone())
-            .map(|h| image::viewer(h).width(200));
+            .map(|h| image::viewer(h).width(250));
 
         let song_description: Element<_> = match self.song.as_ref() {
             Some(info) => {

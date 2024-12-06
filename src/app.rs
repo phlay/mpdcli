@@ -2,12 +2,12 @@ use iced::{widget, Task, Element};
 
 use crate::error::Error;
 use crate::player::{Player, PlayerMsg};
-use crate::remote::{Remote, RemoteMsg, mpd_command};
+use crate::mpd::{Mpd, MpdMsg, mpd_command};
 
 #[derive(Debug, Clone)]
 pub enum AppMsg {
     Reconnect,
-    Remote(Result<RemoteMsg, Error>),
+    Mpd(Result<MpdMsg, Error>),
     Player(PlayerMsg),
 }
 
@@ -29,8 +29,8 @@ impl App {
     }
 
     fn connect() -> Task<AppMsg> {
-        Remote::start()
-            .map(AppMsg::Remote)
+        Mpd::start()
+            .map(AppMsg::Mpd)
     }
 
     pub fn title(&self) -> String {
@@ -50,13 +50,13 @@ impl App {
                 Self::connect()
             }
 
-            AppMsg::Remote(Ok(msg)) => match msg {
-                RemoteMsg::Connected(client) => {
+            AppMsg::Mpd(Ok(msg)) => match msg {
+                MpdMsg::Connected(client) => {
                     *self = Self::Connected { client, player: Player::default() };
                     Task::none()
                 }
 
-                RemoteMsg::Song(info) => {
+                MpdMsg::Song(info) => {
                     match self {
                         Self::Connected { player, .. } => player.update_song(info),
                         _ => (),
@@ -65,7 +65,7 @@ impl App {
                 }
             }
 
-            AppMsg::Remote(Err(error)) => {
+            AppMsg::Mpd(Err(error)) => {
                 *self = Self::Error(error);
                 Task::none()
             }
