@@ -1,14 +1,15 @@
 use iced::{widget, Task, Element};
 
 use crate::error::Error;
-use crate::player::{Player, PlayerMsg};
-use crate::mpd::{Mpd, MpdMsg, mpd_command};
+use crate::player::Player;
+use crate::mpd::{self, MpdMsg, MpdCtrl};
 
 #[derive(Debug, Clone)]
 pub enum AppMsg {
     Reconnect,
     Mpd(Result<MpdMsg, Error>),
-    Player(PlayerMsg),
+    Player(mpd::Cmd),
+    CmdResult(mpd::CmdResult),
 }
 
 
@@ -17,7 +18,7 @@ pub enum App {
 
     Connected {
         player: Player,
-        client: mpd_client::Client,
+        mpd_ctrl: MpdCtrl,
     },
 
     Error(Error),
@@ -29,7 +30,7 @@ impl App {
     }
 
     fn connect() -> Task<AppMsg> {
-        Mpd::start()
+        mpd::connect()
             .map(AppMsg::Mpd)
     }
 
@@ -51,8 +52,8 @@ impl App {
             }
 
             AppMsg::Mpd(Ok(msg)) => match msg {
-                MpdMsg::Connected(client) => {
-                    *self = Self::Connected { client, player: Player::default() };
+                MpdMsg::Connected(mpd_ctrl) => {
+                    *self = Self::Connected { mpd_ctrl, player: Player::default() };
                     Task::none()
                 }
 
@@ -71,27 +72,20 @@ impl App {
             }
 
 
-            AppMsg::Player(msg) => {
-                use mpd_client::commands;
-
-                let Self::Connected { client, .. } = self else {
+            AppMsg::Player(cmd) => {
+                let Self::Connected { mpd_ctrl, .. } = self else {
                     return Task::none();
                 };
 
-                let cc = client.clone();
+                let cc = mpd_ctrl.clone();
+                Task::perform(async move { cc.command(cmd).await }, AppMsg::CmdResult)
+            }
 
-                match msg {
-                    PlayerMsg::Play => {
-                        let _ = tokio::spawn(mpd_command(cc, commands::SetPause(true)));
-                    }
-                    PlayerMsg::Prev => {
-                        let _ = tokio::spawn(mpd_command(cc, commands::Previous));
-                    }
-                    PlayerMsg::Next => {
-                        let _ = tokio::spawn(mpd_command(cc, commands::Next));
-                    }
-                }
+            // Ignore successful command results
+            AppMsg::CmdResult(mpd::CmdResult { error: None, .. }) => Task::none(),
 
+            AppMsg::CmdResult(mpd::CmdResult { cmd, error: Some(msg) }) => {
+                tracing::error!("command {cmd:?} returned error: {msg}");
                 Task::none()
             }
         }

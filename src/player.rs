@@ -1,13 +1,6 @@
 use iced::Element;
 
-use crate::mpd::SongInfo;
-
-#[derive(Debug, Clone)]
-pub enum PlayerMsg {
-    Play,
-    Prev,
-    Next,
-}
+use crate::mpd::{SongInfo, Cmd};
 
 #[derive(Debug, Clone, Default)]
 pub struct Player {
@@ -20,7 +13,7 @@ impl Player {
         self.song = song;
     }
 
-    pub fn view(&self) -> Element<PlayerMsg> {
+    pub fn view(&self) -> Element<Cmd> {
         use iced::{widget, font, widget::image, Font, Center};
 
         let artwork = self.song.as_ref()
@@ -53,9 +46,9 @@ impl Player {
         };
 
         let buttons = widget::row![
-            widget::button("prev").on_press(PlayerMsg::Prev),
-            widget::button("play").on_press(PlayerMsg::Play),
-            widget::button("next").on_press(PlayerMsg::Next),
+            widget::button("prev").on_press(Cmd::Prev),
+            widget::button("play").on_press(Cmd::Play),
+            widget::button("next").on_press(Cmd::Next),
         ].spacing(30);
 
         widget::Column::new()
