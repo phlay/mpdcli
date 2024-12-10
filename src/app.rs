@@ -2,7 +2,7 @@ mod player;
 mod queue;
 
 use bytes::BytesMut;
-use iced::{widget, Task, Element};
+use iced::{widget, Task, Element, Subscription};
 use mpd_client::{
     responses::{
         Status,
@@ -24,6 +24,7 @@ pub enum AppMsg {
     Connect(MpdCtrl),
     Error(Error),
     Op(ConMsg),
+    Quit,
 }
 
 
@@ -34,6 +35,7 @@ pub enum ConMsg {
     CmdResult(mpd::CmdResult),
     UpdateSongInfo(Status),
     UpdateQueue(Vec<SongInQueue>),
+    UpdateMixer(Status),
     UpdateCoverArt(SongId, Option<(BytesMut, Option<String>)>),
 }
 
@@ -100,9 +102,13 @@ impl App {
                 *self = Self::Error(error);
                 Task::none()
             }
+
+
+            AppMsg::Quit => {
+                std::process::exit(0);
+            }
         }
     }
-
 
     pub fn view(&self) -> Element<AppMsg> {
         let content: Element<_> = match self {
@@ -120,6 +126,19 @@ impl App {
         };
 
         widget::center(content).into()
+    }
+
+    pub fn subscription(&self) -> Subscription<AppMsg> {
+        use iced::keyboard::{Key, Modifiers};
+
+        iced::keyboard::on_key_press(|k, m| {
+            match (k, m) {
+                (Key::Character(v) , Modifiers::CTRL) if v == "q"
+                    => Some(AppMsg::Quit),
+
+                _ => None,
+            }
+        })
     }
 }
 
@@ -148,6 +167,7 @@ impl AppConnected {
                 match sub {
                     Subsystem::Player => self.update_song_info(),
                     Subsystem::Queue => self.update_queue(),
+                    Subsystem::Mixer => self.update_mixer(),
 
                     _ => Task::none(),
                 }
@@ -156,9 +176,10 @@ impl AppConnected {
             ConMsg::UpdateSongInfo(status) => {
                 tracing::info!("update song information");
 
+                self.player.set_mixer(&status);
                 if let Some(id) = status.current_song.map(|t| t.1) {
                     if let Some(info) = self.queue.get(id) {
-                        self.player.update(info);
+                        self.player.set_song_info(info);
                     } else {
                         return Task::done(AppMsg::Error(Error::InvalidQueue));
                     }
@@ -176,6 +197,11 @@ impl AppConnected {
                 self.retrieve_cover_art()
             }
 
+            ConMsg::UpdateMixer(status) => {
+                self.player.set_mixer(&status);
+                Task::none()
+            }
+
             ConMsg::UpdateCoverArt(id, data) => {
                 use iced::widget::image::Handle;
 
@@ -190,6 +216,12 @@ impl AppConnected {
             }
 
             ConMsg::Player(cmd) => {
+                // to make the volume slider react faster we inject this
+                // value back ourself
+                if let mpd::Cmd::SetVolume(vol) = cmd {
+                    self.player.set_volume(vol);
+                }
+
                 let cc = self.ctrl.clone();
                 Task::perform(
                     async move {
@@ -236,6 +268,21 @@ impl AppConnected {
             },
             |result| match result {
                 Ok(queue) => AppMsg::Op(ConMsg::UpdateQueue(queue)),
+                Err(error) => AppMsg::Error(error),
+            }
+        )
+    }
+
+    fn update_mixer(&self) -> Task<AppMsg> {
+        tracing::info!("updating mixer");
+
+        let cc = self.ctrl.clone();
+        Task::perform(
+            async move {
+                cc.get_status().await
+            },
+            |result| match result {
+                Ok(status) => AppMsg::Op(ConMsg::UpdateMixer(status)),
                 Err(error) => AppMsg::Error(error),
             }
         )

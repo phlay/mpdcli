@@ -1,18 +1,55 @@
-use iced::{widget::image, Element};
+use iced::{widget::image, widget::svg, Element};
+use mpd_client::responses::{
+    Status,
+    PlayState,
+};
 
 use crate::mpd::Cmd;
 use super::queue::SongInfo;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Player {
-    pub album: String,
-    pub artist: String,
-    pub title: String,
-    pub coverart: Option<image::Handle>,
+    album: String,
+    artist: String,
+    title: String,
+    coverart: Option<image::Handle>,
+
+    volume: u8,
+    state: PlayState,
+    repeat: bool,
+    random: bool,
+    consume: bool,
+
+    icon_play: svg::Handle,
+    icon_pause: svg::Handle,
+    icon_next: svg::Handle,
+    icon_prev: svg::Handle,
+}
+
+impl Default for Player {
+    fn default() -> Self {
+        Self {
+            album: String::new(),
+            artist: String::new(),
+            title: String::new(),
+            coverart: None,
+
+            volume: 0,
+            state: PlayState::Stopped,
+            repeat: false,
+            random: false,
+            consume: false,
+
+            icon_play: svg::Handle::from_path("icons/play.svg"),
+            icon_pause: svg::Handle::from_path("icons/pause.svg"),
+            icon_next: svg::Handle::from_path("icons/next.svg"),
+            icon_prev: svg::Handle::from_path("icons/prev.svg"),
+        }
+    }
 }
 
 impl Player {
-    pub fn update(
+    pub fn set_song_info(
         &mut self,
         info: SongInfo,
     ) {
@@ -20,6 +57,18 @@ impl Player {
         self.artist = info.artist;
         self.title = info.title;
         self.coverart = info.coverart;
+    }
+
+    pub fn set_volume(&mut self, volume: u8) {
+        self.volume = volume;
+    }
+
+    pub fn set_mixer(&mut self, status: &Status) {
+        self.volume = status.volume;
+        self.state = status.state;
+        self.repeat = status.repeat;
+        self.random = status.random;
+        self.consume = status.consume;
     }
 
     pub fn clear(&mut self) {
@@ -30,19 +79,23 @@ impl Player {
     }
 
     pub fn view(&self) -> Element<Cmd> {
-        use iced::{widget, font, widget::image, Font, Center};
+        use iced::{
+            font,
+            widget,
+            Font,
+            Center};
 
         let artwork = self.coverart.as_ref()
-            .map(|handle| image::viewer(handle.clone()).width(300));
+            .map(|handle| widget::image(handle.clone()).height(250));
 
         let description: Element<_> = {
             let title = widget::text(&self.title)
                 .size(25)
                 .font(Font { weight: font::Weight::Bold, ..Font::default() });
             let artist = widget::text(&self.artist)
-                .size(20);
+                .size(18);
             let album = widget::text(&self.album)
-                .size(20);
+                .size(18);
 
             widget::column![
                 title,
@@ -51,11 +104,31 @@ impl Player {
             ].spacing(8).align_x(Center).into()
         };
 
-        let buttons = widget::row![
-            widget::button("prev").on_press(Cmd::Prev),
-            widget::button("play").on_press(Cmd::Play),
-            widget::button("next").on_press(Cmd::Next),
-        ].spacing(30);
+
+        let icon_play = widget::svg(self.icon_play.clone())
+            .width(20);
+        let icon_pause = widget::svg(self.icon_pause.clone())
+            .width(20);
+        let icon_prev = widget::svg(self.icon_prev.clone())
+            .width(20);
+        let icon_next = widget::svg(self.icon_next.clone())
+            .width(20);
+
+        let buttons = widget::Row::new()
+            .spacing(30)
+            .push(widget::button(icon_prev).on_press(Cmd::Prev))
+            .push(match self.state {
+                PlayState::Stopped | PlayState::Paused
+                    => widget::button(icon_play)
+                        .on_press(Cmd::Play),
+                PlayState::Playing
+                    => widget::button(icon_pause)
+                        .on_press(Cmd::Pause),
+            })
+            .push(widget::button(icon_next).on_press(Cmd::Next));
+
+        let volume_slider = widget::slider(0..=100, self.volume, Cmd::SetVolume)
+            .width(300);
 
         widget::Column::new()
             .spacing(50)
@@ -63,6 +136,7 @@ impl Player {
             .push_maybe(artwork)
             .push(description)
             .push(buttons)
+            .push(volume_slider)
             .into()
     }
 }

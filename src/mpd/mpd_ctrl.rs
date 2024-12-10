@@ -12,8 +12,10 @@ use crate::error::Error;
 #[derive(Debug, Clone)]
 pub enum Cmd {
     Play,
+    Pause,
     Prev,
     Next,
+    SetVolume(u8),
 }
 
 #[derive(Clone, Debug)]
@@ -43,6 +45,12 @@ impl MpdCtrl {
                     .err()
             }
 
+            Cmd::Pause => {
+                self.client.command(commands::SetPause(true))
+                    .await
+                    .err()
+            }
+
             Cmd::Prev => {
                 self.client.command(commands::Previous)
                     .await
@@ -51,6 +59,12 @@ impl MpdCtrl {
 
             Cmd::Next => {
                 self.client.command(commands::Next)
+                    .await
+                    .err()
+            }
+
+            Cmd::SetVolume(vol) => {
+                self.client.command(commands::SetVolume(vol))
                     .await
                     .err()
             }

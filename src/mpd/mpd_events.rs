@@ -1,10 +1,5 @@
 use futures_channel::mpsc;
-use iced::widget::image;
 use mpd_client::{
-    responses::{
-        Status,
-        SongInQueue,
-    },
     client::ConnectionEvents,
     Client,
 };
