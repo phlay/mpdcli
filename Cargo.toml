@@ -10,3 +10,4 @@ tokio = { version = "1.42", features = ["full"] }
 iced = { path = "/home/phlay/sw/src/rust/ui/iced", features = ["image", "tokio"] }
 mpd_client = "1.4"
 futures-channel = "0.3.30"
+bytes = "1.5"

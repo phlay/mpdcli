@@ -1,6 +1,5 @@
 mod error;
 mod mpd;
-mod player;
 mod app;
 
 use crate::app::App;

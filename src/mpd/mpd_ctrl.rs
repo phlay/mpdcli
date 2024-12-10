@@ -1,8 +1,13 @@
+use bytes::BytesMut;
 use mpd_client::{
     Client,
-    client::CommandError,
-    responses::Status,
+    responses::{
+        Status,
+        SongInQueue,
+    }
 };
+
+use crate::error::Error;
 
 #[derive(Debug, Clone)]
 pub enum Cmd {
@@ -52,5 +57,28 @@ impl MpdCtrl {
         };
 
         CmdResult { cmd, error: error.map(|e| e.to_string()) }
+    }
+
+    pub async fn get_status(&self) -> Result<Status, Error> {
+        self.client
+            .command(mpd_client::commands::Status)
+            .await
+            .map_err(|e| e.into())
+    }
+
+    pub async fn get_queue(&self) -> Result<Vec<SongInQueue>, Error> {
+        self.client
+            .command(mpd_client::commands::Queue::all())
+            .await
+            .map_err(|e| e.into())
+    }
+
+    pub async fn get_cover_art(&self, uri: &str)
+        -> Result<Option<(BytesMut, Option<String>)>, Error>
+    {
+        self.client
+            .album_art(uri)
+            .await
+            .map_err(|e| e.into())
     }
 }

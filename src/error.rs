@@ -10,6 +10,7 @@ use mpd_client::{
 pub enum Error {
     Io(io::ErrorKind),
     Mpd(String),
+    MpdErrorResponse(u64),
     InvalidQueue,
     SendError(mpsc::SendError),
     Disconnect,
@@ -21,6 +22,7 @@ impl fmt::Display for Error {
         match self {
             Self::Io(error) => write!(f, "io error: {error}"),
             Self::Mpd(msg) => write!(f, "mpd error: {msg}"),
+            Self::MpdErrorResponse(code) => write!(f, "mpd returned error code {code}"),
             Self::InvalidQueue => write!(f, "queue error in mpd"),
             Self::SendError(error) => write!(f, "send to channel: {error}"),
             Self::Disconnect => write!(f, "connection to mpd was disconnected"),
@@ -45,7 +47,13 @@ impl From<MpdProtocolError> for Error {
 
 impl From<CommandError> for Error {
     fn from(error: CommandError) -> Self {
-        Self::Mpd(error.to_string())
+        use mpd_client::protocol::response::Error as MpdErr;
+        match error {
+            CommandError::ErrorResponse { error: MpdErr { code, .. }, .. }
+                => Self::MpdErrorResponse(code),
+
+            _ => Self::Mpd(error.to_string()),
+        }
     }
 }
 
