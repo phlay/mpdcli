@@ -43,7 +43,7 @@ impl Connected {
     pub fn update(&mut self, msg: ConMsg) -> Task<Result<ConMsg, Error>> {
         match msg {
             ConMsg::Change(sub) => {
-                tracing::info!("change of subsystem: {sub:?}");
+                tracing::debug!("change of subsystem: {sub:?}");
 
                 use mpd_client::client::Subsystem;
                 match sub {
@@ -56,7 +56,7 @@ impl Connected {
             }
 
             ConMsg::UpdateSongInfo(status) => {
-                tracing::info!("update song information");
+                tracing::debug!("update song information");
 
                 self.player.set_mixer(&status);
                 if let Some(id) = status.current_song.map(|t| t.1) {
@@ -73,7 +73,7 @@ impl Connected {
             }
 
             ConMsg::UpdateQueue(queue) => {
-                tracing::info!("update queue");
+                tracing::debug!("update queue");
 
                 self.queue.update(queue);
                 self.retrieve_cover_art()
@@ -87,7 +87,7 @@ impl Connected {
             ConMsg::UpdateCoverArt(id, data) => {
                 use iced::widget::image::Handle;
 
-                tracing::info!("update cover art for id {}", id.0);
+                tracing::debug!("update cover art for id {}", id.0);
 
                 let image = data.map(|t| Handle::from_bytes(t.0));
 
@@ -113,7 +113,7 @@ impl Connected {
 
             ConMsg::CmdResult(mpd::CmdResult { cmd, error }) => {
                 if let Some(msg) = error {
-                    tracing::error!("command {cmd:?} returned error: {msg}");
+                    tracing::warn!("command {cmd:?} returned error: {msg}");
                 }
                 Task::none()
             }
@@ -152,7 +152,7 @@ impl Connected {
     }
 
     fn update_mixer(&self) -> Task<Result<ConMsg, Error>> {
-        tracing::info!("updating mixer");
+        tracing::debug!("updating mixer");
 
         let cc = self.ctrl.clone();
         Task::perform(
@@ -171,7 +171,7 @@ impl Connected {
             return self.update_song_info();
         };
 
-        tracing::info!("retrieving cover art for {uri}");
+        tracing::debug!("retrieving cover art for {uri}");
 
         let cc = self.ctrl.clone();
         Task::perform(

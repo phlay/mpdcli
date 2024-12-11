@@ -25,7 +25,6 @@ impl MpdEvents {
     const BINARY_LIMIT: usize = 655360;
 
     pub async fn open() -> Result<Self, Error> {
-
         let stream = tokio::net::TcpStream::connect(Self::TARGET).await?;
         let (client, events) = Client::connect(stream).await?;
 
@@ -39,11 +38,11 @@ impl MpdEvents {
             client::ConnectionEvent,
         };
 
-        // inform user, that we are connected and hand out a client structure
-        tx.send(MpdEvent::Connected(MpdCtrl::new(self.client.clone()))).await?;
-
         // Set large binary limit for faster cover-art download
         self.client.command(commands::SetBinaryLimit(Self::BINARY_LIMIT)).await?;
+
+        // inform user, that we are connected and hand out a remote control
+        tx.send(MpdEvent::Connected(MpdCtrl::new(self.client.clone()))).await?;
 
         // listen for further events from mpd
         while let Some(ev) = self.events.next().await {
