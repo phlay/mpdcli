@@ -121,9 +121,7 @@ impl Connected {
     }
 
     pub fn view(&self) -> Element<ConMsg> {
-        self.player
-            .view()
-            .map(ConMsg::Player)
+        self.player.view().map(ConMsg::Player)
     }
 
     pub fn update_queue(&self) -> Task<Result<ConMsg, Error>> {

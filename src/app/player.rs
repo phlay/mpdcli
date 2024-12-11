@@ -83,10 +83,20 @@ impl Player {
             font,
             widget,
             Font,
-            Center};
+            Center,
+        };
 
-        let artwork = self.coverart.as_ref()
-            .map(|handle| widget::image(handle.clone()).height(250));
+        let artwork: Element<_> = self.coverart
+            .as_ref()
+            .map(|handle| image(handle.clone())
+                .height(200)
+                .into()
+            )
+            .unwrap_or(widget::container("no artwork")
+                .center(200)
+                .style(widget::container::rounded_box)
+                .into()
+            );
 
         let description: Element<_> = {
             let title = widget::text(&self.title)
@@ -105,17 +115,18 @@ impl Player {
         };
 
 
-        let icon_play = widget::svg(self.icon_play.clone())
+        let icon_play = svg(self.icon_play.clone())
+            .width(35);
+        let icon_pause = svg(self.icon_pause.clone())
+            .width(35);
+        let icon_prev = svg(self.icon_prev.clone())
             .width(20);
-        let icon_pause = widget::svg(self.icon_pause.clone())
-            .width(20);
-        let icon_prev = widget::svg(self.icon_prev.clone())
-            .width(20);
-        let icon_next = widget::svg(self.icon_next.clone())
+        let icon_next = svg(self.icon_next.clone())
             .width(20);
 
         let buttons = widget::Row::new()
-            .spacing(30)
+            .spacing(35)
+            .align_y(Center)
             .push(widget::button(icon_prev).on_press(Cmd::Prev))
             .push(match self.state {
                 PlayState::Stopped | PlayState::Paused
@@ -128,12 +139,12 @@ impl Player {
             .push(widget::button(icon_next).on_press(Cmd::Next));
 
         let volume_slider = widget::slider(0..=100, self.volume, Cmd::SetVolume)
-            .width(300);
+            .width(200);
 
         widget::Column::new()
             .spacing(50)
             .align_x(Center)
-            .push_maybe(artwork)
+            .push(artwork)
             .push(description)
             .push(buttons)
             .push(volume_slider)
