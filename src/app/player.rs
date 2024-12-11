@@ -46,6 +46,7 @@ impl Default for Player {
             coverart: None,
             elapsed: None,
             duration: None,
+            last_updated: Instant::now(),
 
             volume: 0,
             state: PlayState::Stopped,
@@ -53,7 +54,6 @@ impl Default for Player {
             random: false,
             consume: false,
 
-            last_updated: Instant::now(),
 
             icon_play: svg::Handle::from_memory(ICON_DATA_PLAY),
             icon_pause: svg::Handle::from_memory(ICON_DATA_PAUSE),
@@ -96,6 +96,10 @@ impl Player {
     }
 
     pub fn update_progress(&mut self) {
+        if self.state == PlayState::Stopped || self.state == PlayState::Paused {
+            return;
+        }
+
         let Some(elapsed) = self.elapsed else {
             return
         };
@@ -111,6 +115,7 @@ impl Player {
             widget,
             Font,
             Center,
+            Fill,
         };
 
         let artwork: Element<_> = self.coverart
@@ -125,16 +130,35 @@ impl Player {
                 .into()
             );
 
-        let progress_value = match (self.elapsed, self.duration) {
-            (Some(elapsed), Some(duration)) if !duration.is_zero()
-                => elapsed.as_secs_f32() / duration.as_secs_f32(),
 
-            _ => 0.0,
+        let progress_bar = {
+            let value = match (self.elapsed, self.duration) {
+                (Some(e), Some(d)) if !e.is_zero() => e.div_duration_f32(d),
+                _ => 0.0,
+            };
+
+            let bar = widget::progress_bar(0.0..=1.0, value)
+                .height(45)
+                .width(300);
+
+
+            let elapsed = self.elapsed
+                .unwrap_or(Duration::from_secs(0))
+                .as_secs();
+            let duration = self.duration
+                .unwrap_or(Duration::from_secs(0))
+                .as_secs();
+            let remaining = duration - elapsed;
+
+            let timing = widget::row![
+                widget::text(format!("{}:{:02}", elapsed / 60, elapsed % 60))
+                    .width(Fill),
+                widget::text(format!("-{}:{:02}", remaining / 60, remaining % 60)),
+            ].width(300);
+
+            widget::column![bar, timing]
         };
 
-
-        let progress_bar = widget::progress_bar(0.0..=1.0, progress_value)
-            .width(300);
 
         let description: Element<_> = {
             let title = widget::text(&self.title)
@@ -149,14 +173,13 @@ impl Player {
                 title,
                 artist,
                 album,
-            ].spacing(8).align_x(Center).into()
+            ].spacing(5).align_x(Center).into()
         };
 
-
         let icon_play = svg(self.icon_play.clone())
-            .width(35);
+            .width(36);
         let icon_pause = svg(self.icon_pause.clone())
-            .width(35);
+            .width(36);
         let icon_prev = svg(self.icon_prev.clone())
             .width(20);
         let icon_next = svg(self.icon_next.clone())
@@ -202,7 +225,7 @@ impl Player {
                 .label("consume")
                 .on_toggle(Cmd::SetConsume)
             )
-            .spacing(35)
+            .spacing(30)
             .align_y(Center);
 
 
