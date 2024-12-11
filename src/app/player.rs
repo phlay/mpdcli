@@ -7,6 +7,11 @@ use mpd_client::responses::{
 use crate::mpd::Cmd;
 use super::queue::SongInfo;
 
+const ICON_DATA_PLAY: &'static [u8] = include_bytes!("icons/play.svg");
+const ICON_DATA_PAUSE: &'static [u8] = include_bytes!("icons/pause.svg");
+const ICON_DATA_PREV: &'static [u8] = include_bytes!("icons/prev.svg");
+const ICON_DATA_NEXT: &'static [u8] = include_bytes!("icons/next.svg");
+
 #[derive(Debug, Clone)]
 pub struct Player {
     album: String,
@@ -40,10 +45,10 @@ impl Default for Player {
             random: false,
             consume: false,
 
-            icon_play: svg::Handle::from_path("icons/play.svg"),
-            icon_pause: svg::Handle::from_path("icons/pause.svg"),
-            icon_next: svg::Handle::from_path("icons/next.svg"),
-            icon_prev: svg::Handle::from_path("icons/prev.svg"),
+            icon_play: svg::Handle::from_memory(ICON_DATA_PLAY),
+            icon_pause: svg::Handle::from_memory(ICON_DATA_PAUSE),
+            icon_next: svg::Handle::from_memory(ICON_DATA_NEXT),
+            icon_prev: svg::Handle::from_memory(ICON_DATA_PREV),
         }
     }
 }
