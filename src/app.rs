@@ -44,6 +44,8 @@ pub enum App {
 }
 
 impl App {
+    const TICK_MS: u64 = 500;
+
     pub fn new() -> (Self, Task<AppMsg>) {
         (Self::Unconnected, Self::connect())
     }
@@ -122,12 +124,23 @@ impl App {
     }
 
     fn subscribe_keyboard(&self) -> Subscription<AppMsg> {
-        use iced::keyboard::{Key, Modifiers};
+        use iced::keyboard::{Key, Modifiers, key::Named};
+        use crate::mpd::Cmd;
 
         iced::keyboard::on_key_press(|k, m| {
             match (k, m) {
-                (Key::Character(v) , Modifiers::CTRL) if v == "q"
+                (Key::Character(v), Modifiers::CTRL) if v == "q"
                     => Some(AppMsg::Quit),
+                (Key::Named(Named::Escape), _)
+                    => Some(AppMsg::Quit),
+                (Key::Character(v), _) if v == "f" || v == "n"
+                    => Some(AppMsg::Operate(ConMsg::Player(Cmd::Next))),
+                (Key::Character(v), _) if v == "b"
+                    => Some(AppMsg::Operate(ConMsg::Player(Cmd::Prev))),
+                (Key::Named(Named::Enter), _)
+                    => Some(AppMsg::Operate(ConMsg::Player(Cmd::Play))),
+                (Key::Named(Named::Space), _)
+                    => Some(AppMsg::Operate(ConMsg::Player(Cmd::Pause))),
 
                 _ => None,
             }
@@ -135,7 +148,7 @@ impl App {
     }
 
     fn subscribe_tick(&self) -> Subscription<AppMsg> {
-        iced::time::every(std::time::Duration::from_millis(500))
+        iced::time::every(std::time::Duration::from_millis(Self::TICK_MS))
             .map(|_| AppMsg::Operate(ConMsg::Tick))
     }
 }
