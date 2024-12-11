@@ -1,3 +1,4 @@
+use std::time::{Instant, Duration};
 use iced::{widget::image, widget::svg, Element};
 use mpd_client::responses::{
     Status,
@@ -19,11 +20,16 @@ pub struct Player {
     title: String,
     coverart: Option<image::Handle>,
 
-    volume: u8,
+    elapsed: Option<Duration>,
+    duration: Option<Duration>,
+
+    pub volume: u8,
     state: PlayState,
     repeat: bool,
     random: bool,
     consume: bool,
+
+    last_updated: Instant,
 
     icon_play: svg::Handle,
     icon_pause: svg::Handle,
@@ -38,12 +44,16 @@ impl Default for Player {
             artist: String::new(),
             title: String::new(),
             coverart: None,
+            elapsed: None,
+            duration: None,
 
             volume: 0,
             state: PlayState::Stopped,
             repeat: false,
             random: false,
             consume: false,
+
+            last_updated: Instant::now(),
 
             icon_play: svg::Handle::from_memory(ICON_DATA_PLAY),
             icon_pause: svg::Handle::from_memory(ICON_DATA_PAUSE),
@@ -64,23 +74,35 @@ impl Player {
         self.coverart = info.coverart;
     }
 
-    pub fn set_volume(&mut self, volume: u8) {
-        self.volume = volume;
-    }
-
-    pub fn set_mixer(&mut self, status: &Status) {
-        self.volume = status.volume;
-        self.state = status.state;
-        self.repeat = status.repeat;
-        self.random = status.random;
-        self.consume = status.consume;
-    }
-
     pub fn clear(&mut self) {
         self.album = String::new();
         self.artist = String::new();
         self.title = String::new();
         self.coverart = None;
+    }
+
+    pub fn update_status(&mut self, status: &Status) {
+        // mixer
+        self.volume = status.volume;
+        self.state = status.state;
+        // options
+        self.random = status.random;
+        self.repeat = status.repeat;
+        self.consume = status.consume;
+        // progress
+        self.elapsed = status.elapsed;
+        self.duration = status.duration;
+        self.last_updated = Instant::now();
+    }
+
+    pub fn update_progress(&mut self) {
+        let Some(elapsed) = self.elapsed else {
+            return
+        };
+
+        let now = Instant::now();
+        self.elapsed = Some(elapsed + now.duration_since(self.last_updated));
+        self.last_updated = now;
     }
 
     pub fn view(&self) -> Element<Cmd> {
@@ -102,6 +124,17 @@ impl Player {
                 .style(widget::container::rounded_box)
                 .into()
             );
+
+        let progress_value = match (self.elapsed, self.duration) {
+            (Some(elapsed), Some(duration)) if !duration.is_zero()
+                => elapsed.as_secs_f32() / duration.as_secs_f32(),
+
+            _ => 0.0,
+        };
+
+
+        let progress_bar = widget::progress_bar(0.0..=1.0, progress_value)
+            .width(300);
 
         let description: Element<_> = {
             let title = widget::text(&self.title)
@@ -146,13 +179,43 @@ impl Player {
         let volume_slider = widget::slider(0..=100, self.volume, Cmd::SetVolume)
             .width(200);
 
+        let togglers = widget::Row::new()
+            .push(widget::checkbox("random", self.random)
+                .on_toggle(Cmd::SetRandom)
+            )
+            .push(widget::checkbox("repeat", self.repeat)
+                .on_toggle(Cmd::SetRepeat)
+            )
+            .push(widget::checkbox("consume", self.consume)
+                .on_toggle(Cmd::SetConsume)
+            )
+            /*
+            .push(widget::toggler(self.random)
+                .label("random")
+                .on_toggle(Cmd::SetRandom)
+            )
+            .push(widget::toggler(self.repeat)
+                .label("repeat")
+                .on_toggle(Cmd::SetRepeat)
+            )
+            .push(widget::toggler(self.consume)
+                .label("consume")
+                .on_toggle(Cmd::SetConsume)
+            )
+            */
+            .spacing(35)
+            .align_y(Center) ;
+
+
         widget::Column::new()
-            .spacing(50)
+            .spacing(45)
             .align_x(Center)
             .push(artwork)
+            .push(progress_bar)
             .push(description)
             .push(buttons)
             .push(volume_slider)
+            .push(togglers)
             .into()
     }
 }

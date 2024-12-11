@@ -18,10 +18,11 @@ use super::queue::Queue;
 pub enum ConMsg {
     Change(Subsystem),
     Player(mpd::Cmd),
+    Tick,
     CmdResult(mpd::CmdResult),
     UpdateSongInfo(Status),
     UpdateQueue(Vec<SongInQueue>),
-    UpdateMixer(Status),
+    UpdateStatus(Status),
     UpdateCoverArt(SongId, Option<(BytesMut, Option<String>)>),
 }
 
@@ -49,16 +50,36 @@ impl Connected {
                 match sub {
                     Subsystem::Player => self.update_song_info(),
                     Subsystem::Queue => self.update_queue(),
-                    Subsystem::Mixer => self.update_mixer(),
+                    Subsystem::Mixer => self.update_status(),
+                    Subsystem::Options => self.update_status(),
 
                     _ => Task::none(),
                 }
             }
 
+            ConMsg::Player(cmd) => {
+                // to make the volume slider react faster we inject this
+                // value back ourself
+                if let mpd::Cmd::SetVolume(vol) = cmd {
+                    self.player.volume = vol;
+                }
+
+                let cc = self.ctrl.clone();
+                Task::perform(
+                    async move { cc.command(cmd).await },
+                    |result| Ok(ConMsg::CmdResult(result)),
+                )
+            }
+
+            ConMsg::Tick => {
+                self.player.update_progress();
+                Task::none()
+            }
+
             ConMsg::UpdateSongInfo(status) => {
                 tracing::debug!("update song information");
 
-                self.player.set_mixer(&status);
+                self.player.update_status(&status);
                 if let Some(id) = status.current_song.map(|t| t.1) {
                     if let Some(info) = self.queue.get(id) {
                         self.player.set_song_info(info);
@@ -79,8 +100,8 @@ impl Connected {
                 self.retrieve_cover_art()
             }
 
-            ConMsg::UpdateMixer(status) => {
-                self.player.set_mixer(&status);
+            ConMsg::UpdateStatus(status) => {
+                self.player.update_status(&status);
                 Task::none()
             }
 
@@ -95,20 +116,6 @@ impl Connected {
                     .update_coverart(id, image);
 
                 self.retrieve_cover_art()
-            }
-
-            ConMsg::Player(cmd) => {
-                // to make the volume slider react faster we inject this
-                // value back ourself
-                if let mpd::Cmd::SetVolume(vol) = cmd {
-                    self.player.set_volume(vol);
-                }
-
-                let cc = self.ctrl.clone();
-                Task::perform(
-                    async move { cc.command(cmd).await },
-                    |result| Ok(ConMsg::CmdResult(result)),
-                )
             }
 
             ConMsg::CmdResult(mpd::CmdResult { cmd, error }) => {
@@ -149,16 +156,14 @@ impl Connected {
         )
     }
 
-    fn update_mixer(&self) -> Task<Result<ConMsg, Error>> {
+    fn update_status(&self) -> Task<Result<ConMsg, Error>> {
         tracing::debug!("updating mixer");
 
         let cc = self.ctrl.clone();
         Task::perform(
-            async move {
-                cc.get_status().await
-            },
+            async move { cc.get_status().await },
             |result| match result {
-                Ok(status) => Ok(ConMsg::UpdateMixer(status)),
+                Ok(status) => Ok(ConMsg::UpdateStatus(status)),
                 Err(error) => Err(error),
             }
         )

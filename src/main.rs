@@ -10,7 +10,8 @@ pub fn main() {
         .init();
 
     if let Err(error) = iced::application(App::title, App::update, App::view)
-        .subscription(App::subscription)
+        .subscription(App::subscribe_keyboard)
+        .subscription(App::subscribe_tick)
         .theme(|_| iced::Theme::Nord)
         .run_with(App::new)
     {

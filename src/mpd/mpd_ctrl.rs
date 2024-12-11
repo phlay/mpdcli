@@ -16,6 +16,9 @@ pub enum Cmd {
     Prev,
     Next,
     SetVolume(u8),
+    SetRandom(bool),
+    SetRepeat(bool),
+    SetConsume(bool),
 }
 
 #[derive(Clone, Debug)]
@@ -65,6 +68,24 @@ impl MpdCtrl {
 
             Cmd::SetVolume(vol) => {
                 self.client.command(commands::SetVolume(vol))
+                    .await
+                    .err()
+            }
+
+            Cmd::SetRandom(b) => {
+                self.client.command(commands::SetRandom(b))
+                    .await
+                    .err()
+            }
+
+            Cmd::SetRepeat(b) => {
+                self.client.command(commands::SetRepeat(b))
+                    .await
+                    .err()
+            }
+
+            Cmd::SetConsume(b) => {
+                self.client.command(commands::SetConsume(b))
                     .await
                     .err()
             }
