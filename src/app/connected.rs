@@ -72,6 +72,7 @@ impl Connected {
             }
 
             ConMsg::Tick => {
+                tracing::trace!("tick");
                 self.player.update_progress();
                 Task::none()
             }

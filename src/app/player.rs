@@ -179,17 +179,17 @@ impl Player {
         let volume_slider = widget::slider(0..=100, self.volume, Cmd::SetVolume)
             .width(200);
 
+        let main_display = widget::Column::new()
+            .spacing(45)
+            .align_x(Center)
+            .push(artwork)
+            .push(progress_bar)
+            .push(description)
+            .push(buttons)
+            .push(volume_slider);
+
+
         let togglers = widget::Row::new()
-            .push(widget::checkbox("random", self.random)
-                .on_toggle(Cmd::SetRandom)
-            )
-            .push(widget::checkbox("repeat", self.repeat)
-                .on_toggle(Cmd::SetRepeat)
-            )
-            .push(widget::checkbox("consume", self.consume)
-                .on_toggle(Cmd::SetConsume)
-            )
-            /*
             .push(widget::toggler(self.random)
                 .label("random")
                 .on_toggle(Cmd::SetRandom)
@@ -202,19 +202,14 @@ impl Player {
                 .label("consume")
                 .on_toggle(Cmd::SetConsume)
             )
-            */
             .spacing(35)
-            .align_y(Center) ;
+            .align_y(Center);
 
 
         widget::Column::new()
-            .spacing(45)
             .align_x(Center)
-            .push(artwork)
-            .push(progress_bar)
-            .push(description)
-            .push(buttons)
-            .push(volume_slider)
+            .padding(10)
+            .push(widget::center(main_display))
             .push(togglers)
             .into()
     }

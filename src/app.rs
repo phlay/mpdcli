@@ -112,7 +112,16 @@ impl App {
         widget::center(content).into()
     }
 
-    pub fn subscribe_keyboard(&self) -> Subscription<AppMsg> {
+    pub fn subscriptions(&self) -> Subscription<AppMsg> {
+        let subs = vec![
+            self.subscribe_tick(),
+            self.subscribe_keyboard(),
+        ];
+
+        Subscription::batch(subs.into_iter())
+    }
+
+    fn subscribe_keyboard(&self) -> Subscription<AppMsg> {
         use iced::keyboard::{Key, Modifiers};
 
         iced::keyboard::on_key_press(|k, m| {
@@ -125,7 +134,7 @@ impl App {
         })
     }
 
-    pub fn subscribe_tick(&self) -> Subscription<AppMsg> {
+    fn subscribe_tick(&self) -> Subscription<AppMsg> {
         iced::time::every(std::time::Duration::from_millis(500))
             .map(|_| AppMsg::Operate(ConMsg::Tick))
     }
