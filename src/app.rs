@@ -44,6 +44,8 @@ pub enum App {
 }
 
 impl App {
+    const APP_NAME: &str = env!("CARGO_PKG_NAME");
+    const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
     const TICK_MS: u64 = 500;
 
     pub fn new() -> (Self, Task<AppMsg>) {
@@ -57,11 +59,11 @@ impl App {
     pub fn title(&self) -> String {
         let title = match self {
             Self::Unconnected => "Unconnected",
-            Self::Connected { .. } => "Connected",
+            Self::Connected(_) => "Connected",
             Self::Error(_) => "Error",
         };
 
-        format!("Player - {title}")
+        format!("{} {} - {}", Self::APP_NAME, Self::APP_VERSION, title)
     }
 
     pub fn update(&mut self, message: AppMsg) -> Task<AppMsg> {
