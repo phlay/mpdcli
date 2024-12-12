@@ -1,9 +1,12 @@
 use std::time::{Instant, Duration};
 use lazy_static::lazy_static;
 use iced::{widget::image, widget::svg, Element};
-use mpd_client::responses::{
-    Status,
-    PlayState,
+use mpd_client::{
+    commands::SongId,
+    responses::{
+        Status,
+        PlayState,
+    },
 };
 
 use crate::mpd::Cmd;
@@ -26,6 +29,7 @@ lazy_static! {
 
 
 pub struct Player {
+    pub current: Option<SongId>,
     album: String,
     artist: String,
     title: String,
@@ -43,6 +47,7 @@ pub struct Player {
 impl Default for Player {
     fn default() -> Self {
         Self {
+            current: None,
             album: String::new(),
             artist: String::new(),
             title: String::new(),
@@ -60,17 +65,16 @@ impl Default for Player {
 }
 
 impl Player {
-    pub fn set_song_info(
-        &mut self,
-        info: SongInfo,
-    ) {
-        self.album = info.album;
-        self.artist = info.artist;
-        self.title = info.title;
-        self.coverart = info.coverart;
+    pub fn set_song_info(&mut self, info: &SongInfo) {
+        self.current = Some(info.id);
+        self.album = info.album.clone();
+        self.artist = info.artist.clone();
+        self.title = info.title.clone();
+        self.coverart = info.coverart.clone();
     }
 
     pub fn clear(&mut self) {
+        self.current = None;
         self.album = String::new();
         self.artist = String::new();
         self.title = String::new();
@@ -123,12 +127,12 @@ impl Player {
 
         let song_description: Element<_> = {
             let title = widget::text(&self.title)
-                .size(25)
+                .size(26)
                 .font(Font { weight: font::Weight::Bold, ..Font::default() });
             let artist = widget::text(&self.artist)
-                .size(18);
+                .size(16);
             let album = widget::text(&self.album)
-                .size(18);
+                .size(16);
 
             widget::column![
                 title,
@@ -177,14 +181,17 @@ impl Player {
         let option_togglers = widget::Row::new()
             .push(widget::toggler(self.random)
                 .label("random")
+                .text_size(12)
                 .on_toggle(Cmd::SetRandom)
             )
             .push(widget::toggler(self.repeat)
                 .label("repeat")
+                .text_size(12)
                 .on_toggle(Cmd::SetRepeat)
             )
             .push(widget::toggler(self.consume)
                 .label("consume")
+                .text_size(12)
                 .on_toggle(Cmd::SetConsume)
             )
             .spacing(30)

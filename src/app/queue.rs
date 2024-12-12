@@ -5,47 +5,52 @@ use mpd_client::{
     commands::SongId,
 };
 
+#[derive(Clone)]
+pub struct SongInfo {
+    pub id: SongId,
+    pub album: String,
+    pub artist: String,
+    pub title: String,
+    pub url: String,
+    pub coverart: Option<image::Handle>,
+    pub missing_cover: bool,
+}
+
 #[derive(Default)]
 pub struct Queue {
-    queue: Vec<SongInQueue>,
-    coverart: HashMap<SongId, Option<image::Handle>>,
+    infos: HashMap<SongId, SongInfo>,
 }
 
 impl Queue {
     pub fn update(&mut self, queue: Vec<SongInQueue>) {
-        self.queue = queue;
+        self.infos = queue.into_iter()
+            .map(|v| (v.id, SongInfo {
+                id: v.id,
+                title: v.song.title().unwrap_or("").to_owned(),
+                artist: v.song.artists().join(", "),
+                album: v.song.album().unwrap_or("").to_owned(),
+                url: v.song.url.clone(),
+                coverart: None,
+                missing_cover: true,
+            }))
+            .collect();
     }
 
     pub fn update_coverart(&mut self, id: SongId, art: Option<image::Handle>) {
-        self.coverart.insert(id, art);
+        if let Some(entry) = self.infos.get_mut(&id) {
+            entry.coverart = art;
+            entry.missing_cover = false;
+        }
     }
 
-    pub fn get(&self, id: SongId) -> Option<SongInfo> {
-        self.queue
+    pub fn get(&self, id: &SongId) -> Option<&SongInfo> {
+        self.infos.get(id)
+    }
+
+    pub fn get_missing(&self) -> Option<(SongId, String)> {
+        self.infos
             .iter()
-            .find(|&song| song.id == id)
-            .map(|entry| {
-                SongInfo {
-                    album: entry.song.album().unwrap_or("").to_owned(),
-                    artist: entry.song.artists().join(", "),
-                    title: entry.song.title().unwrap_or("").to_owned(),
-                    coverart: self.coverart.get(&id).cloned().flatten(),
-                }
-            })
+            .find(|(_, nfo)| nfo.missing_cover)
+            .map(|(&id, nfo)| (id, nfo.url.clone()))
     }
-
-    pub fn get_missing_art(&self) -> Option<(SongId, String)> {
-        self.queue
-            .iter()
-            .find(|&e| self.coverart.get(&e.id).is_none())
-            .map(|e| (e.id, e.song.url.clone()))
-    }
-}
-
-
-pub struct SongInfo {
-    pub album: String,
-    pub artist: String,
-    pub title: String,
-    pub coverart: Option<image::Handle>,
 }

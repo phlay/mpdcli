@@ -79,29 +79,34 @@ impl Connected {
 
             ConMsg::UpdateSongInfo(status) => {
                 tracing::debug!("update song information");
-
                 self.player.update_status(&status);
                 if let Some(id) = status.current_song.map(|t| t.1) {
-                    if let Some(info) = self.queue.get(id) {
+                    if let Some(info) = self.queue.get(&id) {
                         self.player.set_song_info(info);
+                        if info.missing_cover {
+                            self.retrieve_cover_art()
+                        } else {
+                            Task::none()
+                        }
                     } else {
-                        return Task::done(Err(Error::InvalidQueue));
+                        tracing::error!("current song {id:?} not in queue");
+                        Task::done(Err(Error::InvalidQueue))
                     }
+
                 } else {
                     self.player.clear();
+                    Task::none()
                 }
-
-                Task::none()
             }
 
             ConMsg::UpdateQueue(queue) => {
                 tracing::debug!("update queue");
-
                 self.queue.update(queue);
-                self.retrieve_cover_art()
+                self.update_song_info()
             }
 
             ConMsg::UpdateStatus(status) => {
+                tracing::debug!("update player status");
                 self.player.update_status(&status);
                 Task::none()
             }
@@ -113,8 +118,14 @@ impl Connected {
 
                 let image = data.map(|t| Handle::from_bytes(t.0));
 
-                self.queue
-                    .update_coverart(id, image);
+                self.queue.update_coverart(id, image);
+                if self.player.current == Some(id) {
+                    if let Some(info) = self.queue.get(&id) {
+                        self.player.set_song_info(info);
+                    } else {
+                        tracing::error!("current song {id:?} not in queue");
+                    }
+                }
 
                 self.retrieve_cover_art()
             }
@@ -146,9 +157,7 @@ impl Connected {
     fn update_song_info(&self) -> Task<Result<ConMsg, Error>> {
         let cc = self.ctrl.clone();
         Task::perform(
-            async move {
-                cc.get_status().await
-            },
+            async move { cc.get_status().await },
 
             |result| match result {
                 Ok(status) => Ok(ConMsg::UpdateSongInfo(status)),
@@ -171,15 +180,16 @@ impl Connected {
     }
 
     fn retrieve_cover_art(&self) -> Task<Result<ConMsg, Error>> {
-        let Some((id, uri)) = self.queue.get_missing_art() else {
-            return self.update_song_info();
+        let Some((id, url)) = self.queue.get_missing() else {
+            tracing::debug!("all cover artwork downloaded");
+            return Task::none();
         };
 
-        tracing::debug!("retrieving cover art for {uri}");
+        tracing::debug!("retrieving cover art for {url}");
 
         let cc = self.ctrl.clone();
         Task::perform(
-            async move { cc.get_cover_art(&uri).await },
+            async move { cc.get_cover_art(&url).await },
 
             move |result| match result {
                 Ok(art) => Ok(ConMsg::UpdateCoverArt(id, art)),
