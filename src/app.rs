@@ -1,6 +1,8 @@
 mod connected;
-mod player;
+mod song_info;
 mod queue;
+mod progress;
+mod player;
 
 use iced::{widget, Task, Element, Subscription};
 use crate::error::Error;

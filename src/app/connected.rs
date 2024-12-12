@@ -61,7 +61,7 @@ impl Connected {
                 // to make the volume slider react faster we inject this
                 // value back ourself
                 if let mpd::Cmd::SetVolume(vol) = cmd {
-                    self.player.volume = vol;
+                    self.player.set_volume(vol);
                 }
 
                 let cc = self.ctrl.clone();
@@ -79,12 +79,16 @@ impl Connected {
 
             ConMsg::UpdateSongInfo(status) => {
                 tracing::debug!("update song information");
-                self.player.update_status(&status);
-                if let Some(id) = status.current_song.map(|t| t.1) {
+
+                self.player.update_status(status);
+
+                if let Some(id) = self.player.get_current_id() {
                     if let Some(info) = self.queue.get(&id) {
-                        self.player.set_song_info(info);
-                        if info.missing_cover {
-                            self.retrieve_cover_art()
+                        self.player.set_song_info(info.clone());
+                        if info.is_cover_missing() {
+                            self.retrieve_cover_art(id)
+                        } else if let Some(next) = self.player.get_next_id() {
+                            self.retrieve_cover_art(next)
                         } else {
                             Task::none()
                         }
@@ -107,27 +111,40 @@ impl Connected {
 
             ConMsg::UpdateStatus(status) => {
                 tracing::debug!("update player status");
-                self.player.update_status(&status);
+                self.player.update_status(status);
                 Task::none()
             }
 
             ConMsg::UpdateCoverArt(id, data) => {
-                use iced::widget::image::Handle;
 
                 tracing::debug!("update cover art for id {}", id.0);
 
-                let image = data.map(|t| Handle::from_bytes(t.0));
+                self.queue.update_coverart(id, data.map(|x| x.0));
 
-                self.queue.update_coverart(id, image);
-                if self.player.current == Some(id) {
+                if self.player.get_current_id() == Some(id) {
+                    // we are playing the song with the new cover
                     if let Some(info) = self.queue.get(&id) {
-                        self.player.set_song_info(info);
+                        self.player.set_song_info(info.clone());
                     } else {
                         tracing::error!("current song {id:?} not in queue");
                     }
-                }
 
-                self.retrieve_cover_art()
+                    // now also try to retrieve cover for next song
+                    if let Some(next_id) = self.player.get_next_id() {
+                        self.retrieve_cover_art(next_id)
+                    } else {
+                        Task::none()
+                    }
+
+                } else {
+                    // we got the cover for something else, request what
+                    // we need now
+                    if let Some(current_id) = self.player.get_current_id() {
+                        self.retrieve_cover_art(current_id)
+                    } else {
+                        Task::none()
+                    }
+                }
             }
 
             ConMsg::CmdResult(mpd::CmdResult { cmd, error }) => {
@@ -179,13 +196,18 @@ impl Connected {
         )
     }
 
-    fn retrieve_cover_art(&self) -> Task<Result<ConMsg, Error>> {
-        let Some((id, url)) = self.queue.get_missing() else {
-            tracing::debug!("all cover artwork downloaded");
+    fn retrieve_cover_art(&self, id: SongId) -> Task<Result<ConMsg, Error>> {
+        let Some(info) = self.queue.get(&id) else {
+            tracing::warn!("requested cover artwork for unqueued song {id:?}");
             return Task::none();
         };
 
-        tracing::debug!("retrieving cover art for {url}");
+        if !info.is_cover_missing() {
+            return Task::none();
+        }
+
+        let url = info.get_url().to_owned();
+        tracing::debug!("requesting cover art for {url}");
 
         let cc = self.ctrl.clone();
         Task::perform(
