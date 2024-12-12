@@ -11,7 +11,7 @@ pub fn main() {
 
     if let Err(error) = iced::application(App::title, App::update, App::view)
         .subscription(App::subscriptions)
-        .theme(|_| iced::Theme::Nord)
+        .theme(|_| iced::Theme::KanagawaDragon)
         .run_with(App::new)
     {
         tracing::error!("error running iced runtime: {error}");

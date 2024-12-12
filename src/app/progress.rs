@@ -17,11 +17,17 @@ impl Progress {
     }
 
     pub fn update(&mut self) {
-        if self.elapsed < self.duration {
-            let now = Instant::now();
-            self.elapsed += now.duration_since(self.last_update);
-            self.last_update = now;
+        if self.elapsed >= self.duration {
+            return
         }
+
+        let now = Instant::now();
+        self.elapsed += now.duration_since(self.last_update);
+        if self.elapsed > self.duration {
+            self.elapsed = self.duration;
+        }
+
+        self.last_update = now;
     }
 
     pub fn view(&self) -> iced::Element<'_, Cmd> {
@@ -47,14 +53,14 @@ impl Progress {
                 .size(12),
         ].width(300);
 
-        column![bar, timing].spacing(2).into()
+        column![bar, timing].spacing(3).into()
     }
 
     fn progress(&self) -> f32 {
         if self.duration.is_zero() {
-            return 0.0;
+           0.0
+        } else {
+            self.elapsed.div_duration_f32(self.duration)
         }
-
-        self.elapsed.div_duration_f32(self.duration)
     }
 }

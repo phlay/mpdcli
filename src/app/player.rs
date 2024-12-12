@@ -2,10 +2,7 @@ use lazy_static::lazy_static;
 use iced::{widget::svg, Element};
 use mpd_client::{
     commands::SongId,
-    responses::{
-        Status,
-        PlayState,
-    },
+    responses::{Status, PlayState},
 };
 
 use crate::mpd::Cmd;
@@ -24,6 +21,12 @@ lazy_static! {
 
     static ref ICON_NEXT: svg::Handle =
         svg::Handle::from_memory(include_bytes!("icons/next.svg"));
+
+    static ref ICON_VOL_MIN: svg::Handle =
+        svg::Handle::from_memory(include_bytes!("icons/vol-min.svg"));
+
+    static ref ICON_VOL_MAX: svg::Handle =
+        svg::Handle::from_memory(include_bytes!("icons/vol-max.svg"));
 }
 
 
@@ -73,13 +76,20 @@ impl Player {
         use iced::{widget, Center};
 
         let icon_play = svg(ICON_PLAY.clone())
-            .width(36);
+            .width(36)
+            .style(icon_style_button);
+
         let icon_pause = svg(ICON_PAUSE.clone())
-            .width(36);
+            .width(36)
+            .style(icon_style_button);
+
         let icon_prev = svg(ICON_PREV.clone())
-            .width(20);
+            .width(20)
+            .style(icon_style_button);
+
         let icon_next = svg(ICON_NEXT.clone())
-            .width(20);
+            .width(20)
+            .style(icon_style_button);
 
         let media_buttons = widget::Row::new()
             .spacing(35)
@@ -92,8 +102,26 @@ impl Player {
             })
             .push(widget::button(icon_next).on_press(Cmd::Next));
 
-        let volume_slider = widget::slider(0..=100, self.get_volume(), Cmd::SetVolume)
-            .width(200);
+
+        let volume_slider = {
+            let icon_vol_min = svg(ICON_VOL_MIN.clone())
+                .width(20)
+                .style(icon_style_volume);
+
+            let icon_vol_max = svg(ICON_VOL_MAX.clone())
+                .width(20)
+                .style(icon_style_volume);
+
+            let slider = widget::slider(0..=100, self.get_volume(), Cmd::SetVolume)
+                .width(200);
+
+            widget::Row::new()
+                .spacing(22)
+                .align_y(Center)
+                .push(icon_vol_min)
+                .push(slider)
+                .push(icon_vol_max)
+        };
 
         let main_display = widget::Column::new()
             .spacing(40)
@@ -167,4 +195,16 @@ impl Player {
             .as_ref()
             .and_then(|status| status.next_song.map(|x| x.1))
     }
+}
+
+fn icon_style_volume(theme: &iced::Theme, _status: svg::Status) -> svg::Style {
+    let pal = theme.extended_palette();
+    let color = pal.primary.strong.color;
+    svg::Style { color: Some(color) }
+}
+
+fn icon_style_button(theme: &iced::Theme, _status: svg::Status) -> svg::Style {
+    let pal = theme.extended_palette();
+    let color = pal.primary.strong.text;
+    svg::Style { color: Some(color) }
 }
