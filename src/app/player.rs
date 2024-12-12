@@ -1,4 +1,5 @@
 use std::time::{Instant, Duration};
+use lazy_static::lazy_static;
 use iced::{widget::image, widget::svg, Element};
 use mpd_client::responses::{
     Status,
@@ -8,33 +9,35 @@ use mpd_client::responses::{
 use crate::mpd::Cmd;
 use super::queue::SongInfo;
 
-const ICON_DATA_PLAY: &'static [u8] = include_bytes!("icons/play.svg");
-const ICON_DATA_PAUSE: &'static [u8] = include_bytes!("icons/pause.svg");
-const ICON_DATA_PREV: &'static [u8] = include_bytes!("icons/prev.svg");
-const ICON_DATA_NEXT: &'static [u8] = include_bytes!("icons/next.svg");
+lazy_static! {
+    static ref ICON_PLAY: svg::Handle =
+        svg::Handle::from_memory(include_bytes!("icons/play.svg"));
 
-#[derive(Debug, Clone)]
+    static ref ICON_PAUSE: svg::Handle =
+        svg::Handle::from_memory(include_bytes!("icons/pause.svg"));
+
+    static ref ICON_PREV: svg::Handle =
+        svg::Handle::from_memory(include_bytes!("icons/prev.svg"));
+
+    static ref ICON_NEXT: svg::Handle =
+        svg::Handle::from_memory(include_bytes!("icons/next.svg"));
+}
+
+
+
 pub struct Player {
     album: String,
     artist: String,
     title: String,
     coverart: Option<image::Handle>,
 
-    elapsed: Option<Duration>,
-    duration: Option<Duration>,
+    progress: Option<Progress>,
 
     pub volume: u8,
     state: PlayState,
     repeat: bool,
     random: bool,
     consume: bool,
-
-    last_updated: Instant,
-
-    icon_play: svg::Handle,
-    icon_pause: svg::Handle,
-    icon_next: svg::Handle,
-    icon_prev: svg::Handle,
 }
 
 impl Default for Player {
@@ -44,21 +47,14 @@ impl Default for Player {
             artist: String::new(),
             title: String::new(),
             coverart: None,
-            elapsed: None,
-            duration: None,
-            last_updated: Instant::now(),
+
+            progress: None,
 
             volume: 0,
             state: PlayState::Stopped,
             repeat: false,
             random: false,
             consume: false,
-
-
-            icon_play: svg::Handle::from_memory(ICON_DATA_PLAY),
-            icon_pause: svg::Handle::from_memory(ICON_DATA_PAUSE),
-            icon_next: svg::Handle::from_memory(ICON_DATA_NEXT),
-            icon_prev: svg::Handle::from_memory(ICON_DATA_PREV),
         }
     }
 }
@@ -90,23 +86,18 @@ impl Player {
         self.repeat = status.repeat;
         self.consume = status.consume;
         // progress
-        self.elapsed = status.elapsed;
-        self.duration = status.duration;
-        self.last_updated = Instant::now();
+        self.progress = match (status.elapsed, status.duration) {
+            (Some(e), Some(d)) => Some(Progress::new(e, d)),
+            _ => None,
+        };
     }
 
     pub fn update_progress(&mut self) {
-        if self.state == PlayState::Stopped || self.state == PlayState::Paused {
-            return;
+        if self.state == PlayState::Playing {
+            if let Some(progress) = self.progress.as_mut() {
+                progress.update();
+            }
         }
-
-        let Some(elapsed) = self.elapsed else {
-            return
-        };
-
-        let now = Instant::now();
-        self.elapsed = Some(elapsed + now.duration_since(self.last_updated));
-        self.last_updated = now;
     }
 
     pub fn view(&self) -> Element<Cmd> {
@@ -115,10 +106,9 @@ impl Player {
             widget,
             Font,
             Center,
-            Fill,
         };
 
-        let artwork: Element<_> = self.coverart
+        let coverart: Element<_> = self.coverart
             .as_ref()
             .map(|handle| image(handle.clone())
                 .height(200)
@@ -131,36 +121,7 @@ impl Player {
             );
 
 
-        let progress_bar = {
-            let value = match (self.elapsed, self.duration) {
-                (Some(e), Some(d)) if !e.is_zero() => e.div_duration_f32(d),
-                _ => 0.0,
-            };
-
-            let bar = widget::progress_bar(0.0..=1.0, value)
-                .height(45)
-                .width(300);
-
-
-            let elapsed = self.elapsed
-                .unwrap_or(Duration::from_secs(0))
-                .as_secs();
-            let duration = self.duration
-                .unwrap_or(Duration::from_secs(0))
-                .as_secs();
-            let remaining = duration - elapsed;
-
-            let timing = widget::row![
-                widget::text(format!("{}:{:02}", elapsed / 60, elapsed % 60))
-                    .width(Fill),
-                widget::text(format!("-{}:{:02}", remaining / 60, remaining % 60)),
-            ].width(300);
-
-            widget::column![bar, timing]
-        };
-
-
-        let description: Element<_> = {
+        let song_description: Element<_> = {
             let title = widget::text(&self.title)
                 .size(25)
                 .font(Font { weight: font::Weight::Bold, ..Font::default() });
@@ -176,16 +137,16 @@ impl Player {
             ].spacing(5).align_x(Center).into()
         };
 
-        let icon_play = svg(self.icon_play.clone())
+        let icon_play = svg(ICON_PLAY.clone())
             .width(36);
-        let icon_pause = svg(self.icon_pause.clone())
+        let icon_pause = svg(ICON_PAUSE.clone())
             .width(36);
-        let icon_prev = svg(self.icon_prev.clone())
+        let icon_prev = svg(ICON_PREV.clone())
             .width(20);
-        let icon_next = svg(self.icon_next.clone())
+        let icon_next = svg(ICON_NEXT.clone())
             .width(20);
 
-        let buttons = widget::Row::new()
+        let media_buttons = widget::Row::new()
             .spacing(35)
             .align_y(Center)
             .push(widget::button(icon_prev).on_press(Cmd::Prev))
@@ -202,17 +163,18 @@ impl Player {
         let volume_slider = widget::slider(0..=100, self.volume, Cmd::SetVolume)
             .width(200);
 
+
         let main_display = widget::Column::new()
-            .spacing(45)
+            .spacing(40)
             .align_x(Center)
-            .push(artwork)
-            .push(progress_bar)
-            .push(description)
-            .push(buttons)
+            .push(coverart)
+            .push(song_description)
+            .push_maybe(self.progress.as_ref().map(|t| t.view()))
+            .push(media_buttons)
             .push(volume_slider);
 
 
-        let togglers = widget::Row::new()
+        let option_togglers = widget::Row::new()
             .push(widget::toggler(self.random)
                 .label("random")
                 .on_toggle(Cmd::SetRandom)
@@ -233,7 +195,65 @@ impl Player {
             .align_x(Center)
             .padding(10)
             .push(widget::center(main_display))
-            .push(togglers)
+            .push(option_togglers)
             .into()
+    }
+}
+
+struct Progress {
+    elapsed: Duration,
+    duration: Duration,
+    last_update: Instant,
+}
+
+impl Progress {
+    pub fn new(elapsed: Duration, duration: Duration) -> Self {
+        Self {
+            elapsed,
+            duration,
+            last_update: Instant::now(),
+        }
+    }
+
+    pub fn update(&mut self) {
+        if self.elapsed < self.duration {
+            let now = Instant::now();
+            self.elapsed += now.duration_since(self.last_update);
+            self.last_update = now;
+        }
+    }
+
+    pub fn view(&self) -> iced::Element<'_, Cmd> {
+        use iced::widget::{progress_bar, text, row, column};
+        use iced::Fill;
+
+        let bar = progress_bar(0.0..=1.0, self.progress())
+                .height(45)
+                .width(300);
+
+        let elapsed = self.elapsed.as_secs();
+        let remaining = if self.elapsed < self.duration {
+            self.duration.as_secs() - elapsed
+        } else {
+            0
+        };
+
+        let timing = row![
+            text(format!("{}:{:02}", elapsed / 60, elapsed % 60))
+                .size(12)
+                .width(Fill),
+            text(format!("-{}:{:02}", remaining / 60, remaining % 60))
+                .size(12),
+        ].width(300);
+
+        column![bar, timing].spacing(2).into()
+    }
+
+    fn progress(&self) -> f32 {
+        if self.duration.is_zero() {
+            return 0.0;
+        }
+
+        self.elapsed.div_duration_f32(self.duration)
     }
 }
