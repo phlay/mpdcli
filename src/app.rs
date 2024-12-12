@@ -77,11 +77,11 @@ impl App {
 
             AppMsg::Connect(ctrl) => {
                 let con = Connected::new(ctrl);
-                let update_queue = con.update_queue()
+                let request_queue = con.request_queue()
                     .map(AppMsg::from);
 
                 *self = Self::Connected(con);
-                update_queue
+                request_queue
             }
 
             AppMsg::Operate(msg) => match self {
@@ -102,29 +102,28 @@ impl App {
 
     pub fn view(&self) -> Element<AppMsg> {
         let content: Element<_> = match self {
-            Self::Unconnected => {
-                widget::text("Connecting").size(20).into()
-            }
+            Self::Unconnected
+                => widget::text("Connecting to MPD").size(20).into(),
 
             Self::Connected(con) => con.view().map(AppMsg::Operate),
 
-            Self::Error(error) => widget::column![
-                widget::text("Error").size(40),
-                widget::text(error.to_string()).size(20),
-                widget::button("Reconnect").on_press(AppMsg::Reconnect)
-            ].spacing(20).align_x(iced::Center).into(),
+            Self::Error(error) => widget::Column::new()
+                .spacing(20)
+                .align_x(iced::Center)
+                .push(widget::text("Error").size(40))
+                .push(widget::text(error.to_string()).size(20))
+                .push(widget::button("Reconnect").on_press(AppMsg::Reconnect))
+                .into(),
         };
 
         widget::center(content).into()
     }
 
     pub fn subscriptions(&self) -> Subscription<AppMsg> {
-        let subs = vec![
+        Subscription::batch([
             self.subscribe_tick(),
             self.subscribe_keyboard(),
-        ];
-
-        Subscription::batch(subs.into_iter())
+        ])
     }
 
     fn subscribe_keyboard(&self) -> Subscription<AppMsg> {

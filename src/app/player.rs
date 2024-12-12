@@ -27,7 +27,6 @@ lazy_static! {
 }
 
 
-
 pub struct Player {
     song_info: Option<SongInfo>,
     progress: Option<Progress>,
@@ -49,7 +48,7 @@ impl Player {
         self.song_info = Some(info);
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear_song_info(&mut self) {
         self.song_info = None;
     }
 

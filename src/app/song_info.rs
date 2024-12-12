@@ -5,7 +5,6 @@ use iced::{
     Element,
 };
 
-
 use crate::mpd::Cmd;
 
 #[derive(Clone)]
@@ -39,7 +38,6 @@ impl SongInfo {
                 .style(widget::container::rounded_box)
                 .into()
             );
-
 
         let description: Element<_> = {
             let title = widget::text(&self.title)

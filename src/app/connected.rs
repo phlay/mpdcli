@@ -9,7 +9,7 @@ use mpd_client::{
     commands::SongId,
 };
 
-use crate::mpd::{self, MpdCtrl};
+use crate::mpd::{MpdCtrl, Cmd, CmdResult};
 use crate::error::Error;
 use super::player::Player;
 use super::queue::Queue;
@@ -17,9 +17,9 @@ use super::queue::Queue;
 #[derive(Debug, Clone)]
 pub enum ConMsg {
     Change(Subsystem),
-    Player(mpd::Cmd),
+    Player(Cmd),
     Tick,
-    CmdResult(mpd::CmdResult),
+    CmdResult(CmdResult),
     UpdateSongInfo(Status),
     UpdateQueue(Vec<SongInQueue>),
     UpdateStatus(Status),
@@ -48,19 +48,20 @@ impl Connected {
 
                 use mpd_client::client::Subsystem;
                 match sub {
-                    Subsystem::Player => self.update_song_info(),
-                    Subsystem::Queue => self.update_queue(),
-                    Subsystem::Mixer => self.update_status(),
-                    Subsystem::Options => self.update_status(),
+                    Subsystem::Player => self.request_song_info(),
+                    Subsystem::Queue => self.request_queue(),
+                    Subsystem::Mixer => self.request_status(),
+                    Subsystem::Options => self.request_status(),
 
                     _ => Task::none(),
                 }
             }
 
             ConMsg::Player(cmd) => {
-                // to make the volume slider react faster we inject this
-                // value back ourself
-                if let mpd::Cmd::SetVolume(vol) = cmd {
+                // to make the volume slider react faster we inject the
+                // user requested volume back before the server supplies
+                // us with the real value (which should be identical).
+                if let Cmd::SetVolume(vol) = cmd {
                     self.player.set_volume(vol);
                 }
 
@@ -86,9 +87,9 @@ impl Connected {
                     if let Some(info) = self.queue.get(&id) {
                         self.player.set_song_info(info.clone());
                         if info.is_cover_missing() {
-                            self.retrieve_cover_art(id)
+                            self.request_cover_art(id)
                         } else if let Some(next) = self.player.get_next_id() {
-                            self.retrieve_cover_art(next)
+                            self.request_cover_art(next)
                         } else {
                             Task::none()
                         }
@@ -98,7 +99,7 @@ impl Connected {
                     }
 
                 } else {
-                    self.player.clear();
+                    self.player.clear_song_info();
                     Task::none()
                 }
             }
@@ -106,7 +107,7 @@ impl Connected {
             ConMsg::UpdateQueue(queue) => {
                 tracing::debug!("update queue");
                 self.queue.update(queue);
-                self.update_song_info()
+                self.request_song_info()
             }
 
             ConMsg::UpdateStatus(status) => {
@@ -116,38 +117,35 @@ impl Connected {
             }
 
             ConMsg::UpdateCoverArt(id, data) => {
-
                 tracing::debug!("update cover art for id {}", id.0);
-
                 self.queue.update_coverart(id, data.map(|x| x.0));
 
                 if self.player.get_current_id() == Some(id) {
-                    // we are playing the song with the new cover
+                    // we got the current cover, update player
                     if let Some(info) = self.queue.get(&id) {
                         self.player.set_song_info(info.clone());
                     } else {
-                        tracing::error!("current song {id:?} not in queue");
+                        tracing::error!("current song {} not in queue", id.0);
                     }
 
                     // now also try to retrieve cover for next song
                     if let Some(next_id) = self.player.get_next_id() {
-                        self.retrieve_cover_art(next_id)
+                        self.request_cover_art(next_id)
                     } else {
                         Task::none()
                     }
 
                 } else {
-                    // we got the cover for something else, request what
-                    // we need now
+                    // we got the cover for something else
                     if let Some(current_id) = self.player.get_current_id() {
-                        self.retrieve_cover_art(current_id)
+                        self.request_cover_art(current_id)
                     } else {
                         Task::none()
                     }
                 }
             }
 
-            ConMsg::CmdResult(mpd::CmdResult { cmd, error }) => {
+            ConMsg::CmdResult(CmdResult { cmd, error }) => {
                 if let Some(msg) = error {
                     tracing::warn!("command {cmd:?} returned error: {msg}");
                 }
@@ -160,7 +158,7 @@ impl Connected {
         self.player.view().map(ConMsg::Player)
     }
 
-    pub fn update_queue(&self) -> Task<Result<ConMsg, Error>> {
+    pub fn request_queue(&self) -> Task<Result<ConMsg, Error>> {
         let cc = self.ctrl.clone();
         Task::perform(
             async move { cc.get_queue().await },
@@ -171,11 +169,10 @@ impl Connected {
         )
     }
 
-    fn update_song_info(&self) -> Task<Result<ConMsg, Error>> {
+    fn request_song_info(&self) -> Task<Result<ConMsg, Error>> {
         let cc = self.ctrl.clone();
         Task::perform(
             async move { cc.get_status().await },
-
             |result| match result {
                 Ok(status) => Ok(ConMsg::UpdateSongInfo(status)),
                 Err(error) => Err(error),
@@ -183,9 +180,7 @@ impl Connected {
         )
     }
 
-    fn update_status(&self) -> Task<Result<ConMsg, Error>> {
-        tracing::debug!("updating mixer");
-
+    fn request_status(&self) -> Task<Result<ConMsg, Error>> {
         let cc = self.ctrl.clone();
         Task::perform(
             async move { cc.get_status().await },
@@ -196,7 +191,7 @@ impl Connected {
         )
     }
 
-    fn retrieve_cover_art(&self, id: SongId) -> Task<Result<ConMsg, Error>> {
+    fn request_cover_art(&self, id: SongId) -> Task<Result<ConMsg, Error>> {
         let Some(info) = self.queue.get(&id) else {
             tracing::warn!("requested cover artwork for unqueued song {id:?}");
             return Task::none();
@@ -207,7 +202,7 @@ impl Connected {
         }
 
         let url = info.get_url().to_owned();
-        tracing::debug!("requesting cover art for {url}");
+        tracing::debug!("requesting cover art for {}: {url}", id.0);
 
         let cc = self.ctrl.clone();
         Task::perform(
