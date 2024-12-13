@@ -2,6 +2,7 @@
 name = "mpdcli"
 version = "0.1.0"
 edition = "2021"
+licence = "MIT"
 
 [dependencies]
 tracing = "0.1"
@@ -15,7 +16,7 @@ lazy_static = "1.5"
 
 [profile.release-lto]
 inherits = "release"
-opt-level = "z"   # default for release is 3 for fastest
+opt-level = "z"
 lto = true
 strip = true
 codegen-units = 1
