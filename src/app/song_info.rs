@@ -19,12 +19,7 @@ pub struct SongInfo {
 
 impl SongInfo {
     pub fn view(&self) -> Element<Cmd> {
-        use iced::{
-            font,
-            widget,
-            Font,
-            Center,
-        };
+        use iced::{font, widget, Font, Center};
 
         let coverart: Element<_> = self.coverart
             .as_ref()
