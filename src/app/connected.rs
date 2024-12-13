@@ -18,12 +18,12 @@ use super::queue::Queue;
 pub enum ConMsg {
     Change(Subsystem),
     Player(Cmd),
-    Tick,
+    Redraw,
     CmdResult(CmdResult),
     UpdateSongInfo(Status),
     UpdateQueue(Vec<SongInQueue>),
     UpdateStatus(Status),
-    UpdateCoverArt(SongId, Option<(BytesMut, Option<String>)>),
+    UpdateCoverArt(SongId, Option<BytesMut>),
 }
 
 pub struct Connected {
@@ -39,6 +39,10 @@ impl Connected {
             player: Player::default(),
             queue: Queue::default(),
         }
+    }
+
+    pub fn is_playing(&self) -> bool {
+        self.player.is_playing()
     }
 
     pub fn update(&mut self, msg: ConMsg) -> Task<Result<ConMsg, Error>> {
@@ -72,11 +76,7 @@ impl Connected {
                 )
             }
 
-            ConMsg::Tick => {
-                tracing::trace!("tick");
-                self.player.update_progress();
-                Task::none()
-            }
+            ConMsg::Redraw => Task::none(),
 
             ConMsg::UpdateSongInfo(status) => {
                 tracing::debug!("update song information");
@@ -118,7 +118,7 @@ impl Connected {
 
             ConMsg::UpdateCoverArt(id, data) => {
                 tracing::debug!("update cover art for id {}", id.0);
-                self.queue.update_coverart(id, data.map(|x| x.0));
+                self.queue.update_coverart(id, data);
 
                 if self.player.get_current_id() == Some(id) {
                     // we got the current cover, update player
@@ -146,6 +146,7 @@ impl Connected {
             }
 
             ConMsg::CmdResult(CmdResult { cmd, error }) => {
+                tracing::debug!("command {cmd:?} completed");
                 if let Some(msg) = error {
                     tracing::warn!("command {cmd:?} returned error: {msg}");
                 }
@@ -211,7 +212,7 @@ impl Connected {
             move |result| match result {
                 Ok(art) => Ok(ConMsg::UpdateCoverArt(id, art)),
 
-                // Handle "File Not Found" (code 50) response
+                // Handle "File Not Found" (code 50) response as "No Artwork"
                 Err(Error::MpdErrorResponse(50))
                     => Ok(ConMsg::UpdateCoverArt(id, None)),
 

@@ -23,28 +23,20 @@ lazy_static! {
         svg::Handle::from_memory(include_bytes!("icons/next.svg"));
 
     static ref ICON_VOL_MIN: svg::Handle =
-        svg::Handle::from_memory(include_bytes!("icons/vol-min.svg"));
+        svg::Handle::from_memory(include_bytes!("icons/volmin.svg"));
 
     static ref ICON_VOL_MAX: svg::Handle =
-        svg::Handle::from_memory(include_bytes!("icons/vol-max.svg"));
+        svg::Handle::from_memory(include_bytes!("icons/volmax.svg"));
 }
 
 
+#[derive(Default)]
 pub struct Player {
     song_info: Option<SongInfo>,
     progress: Option<Progress>,
     status: Option<Status>,
 }
 
-impl Default for Player {
-    fn default() -> Self {
-        Self {
-            song_info: None,
-            progress: None,
-            status: None,
-        }
-    }
-}
 
 impl Player {
     pub fn set_song_info(&mut self, info: SongInfo) {
@@ -56,20 +48,12 @@ impl Player {
     }
 
     pub fn update_status(&mut self, status: Status) {
+        let playing = status.state == PlayState::Playing;
         self.progress = match (status.elapsed, status.duration) {
-            (Some(e), Some(d)) => Some(Progress::new(e, d)),
+            (Some(e), Some(d)) => Some(Progress::new(e, d, playing)),
             _ => None,
         };
-
         self.status = Some(status);
-    }
-
-    pub fn update_progress(&mut self) {
-        if self.is_playing() {
-            if let Some(progress) = self.progress.as_mut() {
-                progress.update();
-            }
-        }
     }
 
     pub fn view(&self) -> Element<Cmd> {
@@ -162,7 +146,7 @@ impl Player {
             .into()
     }
 
-    fn is_playing(&self) -> bool {
+    pub fn is_playing(&self) -> bool {
         if let Some(status) = self.status.as_ref() {
             status.state == PlayState::Playing
         } else {

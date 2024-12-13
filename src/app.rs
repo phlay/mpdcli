@@ -4,6 +4,7 @@ mod queue;
 mod progress;
 mod player;
 
+use std::time::Duration;
 use iced::{widget, Task, Element, Subscription};
 use crate::error::Error;
 use crate::mpd::{MpdEvent, MpdCtrl, mpd_connect};
@@ -48,7 +49,7 @@ pub enum App {
 impl App {
     const APP_NAME: &str = env!("CARGO_PKG_NAME");
     const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-    const TICK_MS: u64 = 500;
+    const PERIODIC_REDRAW: Duration = Duration::from_millis(500);
 
     pub fn new() -> (Self, Task<AppMsg>) {
         (Self::Unconnected, Self::connect())
@@ -121,7 +122,7 @@ impl App {
 
     pub fn subscriptions(&self) -> Subscription<AppMsg> {
         Subscription::batch([
-            self.subscribe_tick(),
+            self.subscribe_redraw_timer(),
             self.subscribe_keyboard(),
         ])
     }
@@ -150,8 +151,14 @@ impl App {
         })
     }
 
-    fn subscribe_tick(&self) -> Subscription<AppMsg> {
-        iced::time::every(std::time::Duration::from_millis(Self::TICK_MS))
-            .map(|_| AppMsg::Operate(ConMsg::Tick))
+    fn subscribe_redraw_timer(&self) -> Subscription<AppMsg> {
+        match self {
+            App::Connected(con) if con.is_playing() => {
+                iced::time::every(Self::PERIODIC_REDRAW)
+                    .map(|_| AppMsg::Operate(ConMsg::Redraw))
+            }
+
+            _ => Subscription::none(),
+        }
     }
 }

@@ -9,14 +9,13 @@ use crate::mpd::Cmd;
 
 #[derive(Clone)]
 pub struct SongInfo {
-    album: String,
-    artist: String,
     title: String,
+    artist: String,
+    album: String,
     url: String,
     coverart: Option<image::Handle>,
     missing_cover: bool,
 }
-
 
 impl SongInfo {
     pub fn view(&self) -> Element<Cmd> {
@@ -81,8 +80,18 @@ impl SongInfo {
 
 impl From<SongInQueue> for SongInfo {
     fn from(nfo: SongInQueue) -> Self {
+        let title = if let Some(title) = nfo.song.title() {
+            title.to_owned()
+        } else {
+            use std::path::Path;
+            let path = Path::new(&nfo.song.url);
+            path.file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or(String::from("<unknown file>"))
+        };
+
         Self {
-            title: nfo.song.title().unwrap_or("").to_owned(),
+            title,
             artist: nfo.song.artists().join(", "),
             album: nfo.song.album().unwrap_or("").to_owned(),
             url: nfo.song.url.clone(),

@@ -43,49 +43,57 @@ impl MpdCtrl {
 
         let error = match cmd {
             Cmd::Play => {
-                self.client.command(commands::Play::current())
+                self.client
+                    .command(commands::Play::current())
                     .await
                     .err()
             }
 
             Cmd::Pause => {
-                self.client.command(commands::SetPause(true))
+                self.client
+                    .command(commands::SetPause(true))
                     .await
                     .err()
             }
 
             Cmd::Prev => {
-                self.client.command(commands::Previous)
+                self.client
+                    .command(commands::Previous)
                     .await
                     .err()
             }
 
             Cmd::Next => {
-                self.client.command(commands::Next)
+                self.client
+                    .command(commands::Next)
                     .await
                     .err()
             }
 
             Cmd::SetVolume(vol) => {
-                self.client.command(commands::SetVolume(vol))
+                self.client
+                    .command(commands::SetVolume(vol))
                     .await
                     .err()
             }
 
             Cmd::SetRandom(b) => {
-                self.client.command(commands::SetRandom(b))
+                self.client
+                    .command(commands::SetRandom(b))
                     .await
                     .err()
             }
 
             Cmd::SetRepeat(b) => {
-                self.client.command(commands::SetRepeat(b))
+                self.client
+                    .command(commands::SetRepeat(b))
                     .await
                     .err()
             }
 
             Cmd::SetConsume(b) => {
-                self.client.command(commands::SetConsume(b))
+                self.client
+                    .command(commands::SetConsume(b))
                     .await
                     .err()
             }
@@ -98,22 +106,21 @@ impl MpdCtrl {
         self.client
             .command(mpd_client::commands::Status)
             .await
-            .map_err(|e| e.into())
+            .map_err(Error::from)
     }
 
     pub async fn get_queue(&self) -> Result<Vec<SongInQueue>, Error> {
         self.client
             .command(mpd_client::commands::Queue::all())
             .await
-            .map_err(|e| e.into())
+            .map_err(Error::from)
     }
 
-    pub async fn get_cover_art(&self, uri: &str)
-        -> Result<Option<(BytesMut, Option<String>)>, Error>
-    {
+    pub async fn get_cover_art(&self, uri: &str) -> Result<Option<BytesMut>, Error> {
         self.client
             .album_art(uri)
             .await
-            .map_err(|e| e.into())
+            .map(|opt| opt.map(|x| x.0))
+            .map_err(Error::from)
     }
 }

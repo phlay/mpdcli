@@ -4,63 +4,64 @@ use crate::mpd::Cmd;
 pub struct Progress {
     elapsed: Duration,
     duration: Duration,
-    last_update: Instant,
+    timestamp: Option<Instant>,
 }
 
 impl Progress {
-    pub fn new(elapsed: Duration, duration: Duration) -> Self {
+    pub fn new(elapsed: Duration, duration: Duration, playing: bool) -> Self {
+        let timestamp = if playing {
+            Some(Instant::now())
+        } else {
+            None
+        };
+
         Self {
             elapsed,
             duration,
-            last_update: Instant::now(),
+            timestamp,
         }
-    }
-
-    pub fn update(&mut self) {
-        if self.elapsed >= self.duration {
-            return
-        }
-
-        let now = Instant::now();
-        self.elapsed += now.duration_since(self.last_update);
-        if self.elapsed > self.duration {
-            self.elapsed = self.duration;
-        }
-
-        self.last_update = now;
     }
 
     pub fn view(&self) -> iced::Element<'_, Cmd> {
         use iced::widget::{progress_bar, text, row, column};
         use iced::Fill;
 
-        let bar = progress_bar(0.0..=1.0, self.progress())
-                .height(45)
-                .width(300);
+        let duration = self.duration.as_secs_f32();
 
-        let elapsed = self.elapsed.as_secs();
-        let remaining = if self.elapsed < self.duration {
-            self.duration.as_secs() - elapsed
+        let elapsed = if let Some(time) = self.timestamp {
+            let delta = Instant::now().duration_since(time);
+            (self.elapsed + delta).as_secs_f32()
         } else {
-            0
+            self.elapsed.as_secs_f32()
         };
 
+        let remaining = if elapsed < duration {
+            duration - elapsed
+        } else {
+            0.0
+        };
+
+        let progress = if duration > 0.1 {
+            elapsed  / duration
+        } else {
+            0.0
+        };
+
+        let bar = progress_bar(0.0..=1.0, progress)
+            .height(45)
+            .width(300);
+
         let timing = row![
-            text(format!("{}:{:02}", elapsed / 60, elapsed % 60))
-                .size(12)
-                .width(Fill),
-            text(format!("-{}:{:02}", remaining / 60, remaining % 60))
-                .size(12),
+            text(show_min_secs(elapsed)).size(12).width(Fill),
+            text(show_min_secs(-remaining)).size(12),
         ].width(300);
 
         column![bar, timing].spacing(3).into()
     }
+}
 
-    fn progress(&self) -> f32 {
-        if self.duration.is_zero() {
-           0.0
-        } else {
-            self.elapsed.div_duration_f32(self.duration)
-        }
-    }
+fn show_min_secs(secs: f32) -> String {
+    let sgn = secs.signum() as i32;
+    let n = secs.abs().round() as i32;
+    format!("{}:{:02}", sgn * n / 60, n % 60)
 }
