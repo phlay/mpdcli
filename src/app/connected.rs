@@ -94,7 +94,7 @@ impl Connected {
                             Task::none()
                         }
                     } else {
-                        tracing::error!("current song {id:?} not in queue");
+                        tracing::error!("current song {} not in queue", id.0);
                         Task::done(Err(Error::InvalidQueue))
                     }
 
@@ -193,7 +193,7 @@ impl Connected {
 
     fn request_cover_art(&self, id: SongId) -> Task<Result<ConMsg, Error>> {
         let Some(info) = self.queue.get(&id) else {
-            tracing::warn!("requested cover artwork for unqueued song {id:?}");
+            tracing::warn!("requested cover artwork for unqueued song {}", id.0);
             return Task::none();
         };
 

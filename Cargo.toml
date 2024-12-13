@@ -6,9 +6,17 @@ edition = "2021"
 [dependencies]
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tokio = "1.42"
+tokio = "1"
 iced = { path = "/home/phlay/sw/src/rust/ui/iced", features = ["image", "svg", "tokio"] }
 mpd_client = "1.4"
-futures-channel = "0.3.30"
+futures-channel = "0.3"
 bytes = "1.5"
 lazy_static = "1.5"
+
+[profile.release-lto]
+inherits = "release"
+opt-level = "z"   # default for release is 3 for fastest
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"
