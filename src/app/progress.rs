@@ -48,13 +48,19 @@ impl Progress {
         };
 
         let bar = progress_bar(0.0..=1.0, progress)
-            .height(45)
-            .width(300);
+            .style(|theme| {
+                progress_bar::Style {
+                    border: iced::border::rounded(5),
+                    ..progress_bar::primary(theme)
+                }
+            })
+            .height(50)
+            .width(320);
 
         let timing = row![
             text(show_min_secs(elapsed)).size(12).width(Fill),
             text(show_min_secs(-remaining)).size(12),
-        ].width(300);
+        ].width(320);
 
         column![bar, timing].spacing(3).into()
     }

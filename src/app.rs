@@ -49,7 +49,7 @@ pub enum App {
 impl App {
     const APP_NAME: &str = env!("CARGO_PKG_NAME");
     const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-    const PERIODIC_REDRAW: Duration = Duration::from_millis(500);
+    const PERIODIC_REDRAW: Duration = Duration::from_millis(250);
 
     pub fn new() -> (Self, Task<AppMsg>) {
         (Self::Unconnected, Self::connect())

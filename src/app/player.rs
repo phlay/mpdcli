@@ -1,5 +1,9 @@
 use lazy_static::lazy_static;
-use iced::{widget::svg, Element};
+use iced::{
+    widget::{svg, button},
+    Element,
+    Theme,
+};
 use mpd_client::{
     commands::SongId,
     responses::{Status, PlayState},
@@ -60,11 +64,11 @@ impl Player {
         use iced::{widget, Center};
 
         let icon_play = svg(ICON_PLAY.clone())
-            .width(36)
+            .width(40)
             .style(icon_style_button);
 
         let icon_pause = svg(ICON_PAUSE.clone())
-            .width(36)
+            .width(40)
             .style(icon_style_button);
 
         let icon_prev = svg(ICON_PREV.clone())
@@ -76,15 +80,25 @@ impl Player {
             .style(icon_style_button);
 
         let media_buttons = widget::Row::new()
-            .spacing(35)
+            .spacing(40)
             .align_y(Center)
-            .push(widget::button(icon_prev).on_press(Cmd::Prev))
+            .push(widget::button(icon_prev)
+                .style(button_style)
+                .on_press(Cmd::Prev)
+            )
             .push(if self.is_playing() {
-                widget::button(icon_pause).on_press(Cmd::Pause)
+                widget::button(icon_pause)
+                    .style(button_style)
+                    .on_press(Cmd::Pause)
             } else {
-                widget::button(icon_play).on_press(Cmd::Play)
+                widget::button(icon_play)
+                    .style(button_style)
+                    .on_press(Cmd::Play)
             })
-            .push(widget::button(icon_next).on_press(Cmd::Next));
+            .push(widget::button(icon_next)
+                .style(button_style)
+                .on_press(Cmd::Next)
+            );
 
 
         let volume_slider = {
@@ -97,10 +111,10 @@ impl Player {
                 .style(icon_style_volume);
 
             let slider = widget::slider(0..=100, self.get_volume(), Cmd::SetVolume)
-                .width(200);
+                .width(220);
 
             widget::Row::new()
-                .spacing(22)
+                .spacing(18)
                 .align_y(Center)
                 .push(icon_vol_min)
                 .push(slider)
@@ -133,7 +147,7 @@ impl Player {
                 .text_size(12)
                 .on_toggle(Cmd::SetConsume)
             )
-            .spacing(30)
+            .spacing(32)
             .align_y(Center)
         });
 
@@ -181,14 +195,21 @@ impl Player {
     }
 }
 
-fn icon_style_volume(theme: &iced::Theme, _status: svg::Status) -> svg::Style {
+fn icon_style_volume(theme: &Theme, _status: svg::Status) -> svg::Style {
     let pal = theme.extended_palette();
-    let color = pal.primary.strong.color;
+    let color = pal.secondary.base.color;
     svg::Style { color: Some(color) }
 }
 
-fn icon_style_button(theme: &iced::Theme, _status: svg::Status) -> svg::Style {
+fn icon_style_button(theme: &Theme, _status: svg::Status) -> svg::Style {
     let pal = theme.extended_palette();
     let color = pal.primary.strong.text;
     svg::Style { color: Some(color) }
+}
+
+fn button_style(theme: &Theme, status: button::Status) -> button::Style {
+    button::Style {
+        border: iced::border::rounded(5),
+        ..button::primary(theme, status)
+    }
 }

@@ -19,17 +19,20 @@ pub struct SongInfo {
 
 impl SongInfo {
     pub fn view(&self) -> Element<Cmd> {
-        use iced::{font, widget, Font, Center};
+        use iced::{font, widget, border, Font, Center};
 
         let coverart: Element<_> = self.coverart
             .as_ref()
             .map(|handle| image(handle.clone())
-                .height(200)
+                .height(220)
                 .into()
             )
-            .unwrap_or(widget::container("no artwork")
-                .center(200)
-                .style(widget::container::rounded_box)
+            .unwrap_or(widget::container("")
+                .center(220)
+                .style(|theme| widget::container::Style {
+                    border: border::rounded(5),
+                    ..widget::container::rounded_box(theme)
+                })
                 .into()
             );
 
