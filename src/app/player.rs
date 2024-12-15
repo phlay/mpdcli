@@ -34,15 +34,31 @@ lazy_static! {
 }
 
 
-#[derive(Default)]
 pub struct Player {
     song_info: Option<SongInfo>,
     progress: Option<Progress>,
     status: Option<Status>,
+    show_song_info: bool,
+    show_coverart: bool,
+    show_progress: bool,
+    show_options: bool,
 }
 
 
 impl Player {
+    pub fn new() -> Self {
+        Self {
+            song_info: None,
+            progress: None,
+            status: None,
+
+            show_song_info: true,
+            show_coverart: true,
+            show_progress: true,
+            show_options: true,
+        }
+    }
+
     pub fn set_song_info(&mut self, info: SongInfo) {
         self.song_info = Some(info);
     }
@@ -121,16 +137,28 @@ impl Player {
                 .push(icon_vol_max)
         };
 
+        let song_info = self.song_info
+            .as_ref()
+            .map(|x| x.view(self.show_song_info, self.show_coverart));
+
+        let progress = self.progress
+            .as_ref()
+            .filter(|_| self.show_progress)
+            .map(|x| x.view());
+
         let main_display = widget::Column::new()
             .spacing(40)
             .align_x(Center)
-            .push_maybe(self.song_info.as_ref().map(|x| x.view()))
-            .push_maybe(self.progress.as_ref().map(|x| x.view()))
+            .push_maybe(song_info)
+            .push_maybe(progress)
             .push(media_buttons)
             .push(volume_slider);
 
 
-        let option_togglers = self.status.as_ref().map(|s| {
+        let option_togglers = self.status
+            .as_ref()
+            .filter(|_| self.show_options)
+            .map(|s| {
             widget::Row::new()
             .push(widget::toggler(s.random)
                 .label("random")
@@ -193,6 +221,22 @@ impl Player {
             .as_ref()
             .and_then(|status| status.next_song.map(|x| x.1))
     }
+
+    pub fn toggle_show_song_info(&mut self) {
+        self.show_song_info = !self.show_song_info;
+    }
+
+    pub fn toggle_show_coverart(&mut self) {
+        self.show_coverart = !self.show_coverart;
+    }
+
+    pub fn toggle_show_progress(&mut self) {
+        self.show_progress = !self.show_progress;
+    }
+
+    pub fn toggle_show_options(&mut self) {
+        self.show_options = !self.show_options;
+    }
 }
 
 fn icon_style_volume(theme: &Theme, _status: svg::Status) -> svg::Style {
@@ -203,7 +247,8 @@ fn icon_style_volume(theme: &Theme, _status: svg::Status) -> svg::Style {
 
 fn icon_style_button(theme: &Theme, _status: svg::Status) -> svg::Style {
     let pal = theme.extended_palette();
-    let color = pal.primary.strong.text;
+    // actually a label would be primary.strong.text
+    let color = pal.primary.base.text;
     svg::Style { color: Some(color) }
 }
 

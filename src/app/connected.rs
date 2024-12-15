@@ -19,6 +19,11 @@ pub enum ConMsg {
     Change(Subsystem),
     Player(Cmd),
     Redraw,
+    ToggleShowOptions,
+    ToggleShowSongInfo,
+    ToggleShowCoverart,
+    ToggleShowProgress,
+    TogglePlay,
     CmdResult(CmdResult),
     UpdateSongInfo(Status),
     UpdateQueue(Vec<SongInQueue>),
@@ -36,7 +41,7 @@ impl Connected {
     pub fn new(ctrl: MpdCtrl) -> Self {
         Self {
             ctrl,
-            player: Player::default(),
+            player: Player::new(),
             queue: Queue::default(),
         }
     }
@@ -77,6 +82,40 @@ impl Connected {
             }
 
             ConMsg::Redraw => Task::none(),
+
+            ConMsg::ToggleShowOptions => {
+                self.player.toggle_show_options();
+                Task::none()
+            }
+
+            ConMsg::ToggleShowSongInfo => {
+                self.player.toggle_show_song_info();
+                Task::none()
+            }
+
+            ConMsg::ToggleShowCoverart => {
+                self.player.toggle_show_coverart();
+                Task::none()
+            }
+
+            ConMsg::ToggleShowProgress => {
+                self.player.toggle_show_progress();
+                Task::none()
+            }
+
+            ConMsg::TogglePlay => {
+                let cmd = if self.player.is_playing() {
+                    Cmd::Pause
+                } else {
+                    Cmd::Play
+                };
+                let cc = self.ctrl.clone();
+                Task::perform(
+                    async move { cc.command(cmd).await },
+                    |result| Ok(ConMsg::CmdResult(result)),
+                )
+            }
+
 
             ConMsg::UpdateSongInfo(status) => {
                 tracing::debug!("update song information");

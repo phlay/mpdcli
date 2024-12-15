@@ -18,25 +18,30 @@ pub struct SongInfo {
 }
 
 impl SongInfo {
-    pub fn view(&self) -> Element<Cmd> {
+    pub fn view(&self, show_info: bool, show_art: bool) -> Element<Cmd> {
         use iced::{font, widget, border, Font, Center};
 
-        let coverart: Element<_> = self.coverart
-            .as_ref()
-            .map(|handle| image(handle.clone())
-                .height(220)
-                .into()
+        let coverart: Option<Element<_>> = if show_art {
+            Some(self.coverart
+                .as_ref()
+                .map(|handle| image(handle.clone())
+                    .height(220)
+                    .into()
+                )
+                .unwrap_or(widget::container("")
+                    .center(220)
+                    .style(|theme| widget::container::Style {
+                        border: border::rounded(5),
+                        ..widget::container::rounded_box(theme)
+                    })
+                    .into()
+                )
             )
-            .unwrap_or(widget::container("")
-                .center(220)
-                .style(|theme| widget::container::Style {
-                    border: border::rounded(5),
-                    ..widget::container::rounded_box(theme)
-                })
-                .into()
-            );
+        } else {
+            None
+        };
 
-        let description: Element<_> = {
+        let description: Option<Element<_>> = if show_info {
             let title = widget::text(&self.title)
                 .size(26)
                 .font(Font { weight: font::Weight::Bold, ..Font::default() });
@@ -45,20 +50,22 @@ impl SongInfo {
             let album = widget::text(&self.album)
                 .size(16);
 
-            widget::Column::new()
+            Some(widget::Column::new()
                 .spacing(5)
                 .align_x(Center)
                 .push(title)
                 .push(artist)
                 .push(album)
-                .into()
+                .into())
+        } else {
+            None
         };
 
         widget::Column::new()
             .align_x(Center)
             .spacing(40)
-            .push(coverart)
-            .push(description)
+            .push_maybe(coverart)
+            .push_maybe(description)
             .into()
     }
 

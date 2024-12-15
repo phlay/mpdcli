@@ -141,10 +141,17 @@ impl App {
                     => Some(AppMsg::Operate(ConMsg::Player(Cmd::Next))),
                 (Key::Character(v), _) if v == "b"
                     => Some(AppMsg::Operate(ConMsg::Player(Cmd::Prev))),
-                (Key::Named(Named::Enter), _)
-                    => Some(AppMsg::Operate(ConMsg::Player(Cmd::Play))),
+                (Key::Character(v), _) if v == "o"
+                    => Some(AppMsg::Operate(ConMsg::ToggleShowOptions)),
+                (Key::Character(v), _) if v == "i"
+                    => Some(AppMsg::Operate(ConMsg::ToggleShowSongInfo)),
+                (Key::Character(v), _) if v == "c"
+                    => Some(AppMsg::Operate(ConMsg::ToggleShowCoverart)),
+                (Key::Character(v), _) if v == "p"
+                    => Some(AppMsg::Operate(ConMsg::ToggleShowProgress)),
                 (Key::Named(Named::Space), _)
-                    => Some(AppMsg::Operate(ConMsg::Player(Cmd::Pause))),
+                    => Some(AppMsg::Operate(ConMsg::TogglePlay)),
+
 
                 _ => None,
             }
