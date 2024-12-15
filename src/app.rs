@@ -62,7 +62,7 @@ impl App {
     pub fn title(&self) -> String {
         let title = match self {
             Self::Unconnected => "Unconnected",
-            Self::Connected(_) => "Connected",
+            Self::Connected(con) => con.title(),
             Self::Error(_) => "Error",
         };
 

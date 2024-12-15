@@ -50,6 +50,12 @@ impl Connected {
         self.player.is_playing()
     }
 
+    pub fn title(&self) -> &str {
+        self.player
+            .get_song_title()
+            .unwrap_or("Empty")
+    }
+
     pub fn update(&mut self, msg: ConMsg) -> Task<Result<ConMsg, Error>> {
         match msg {
             ConMsg::Change(sub) => {

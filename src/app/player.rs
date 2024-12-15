@@ -237,6 +237,12 @@ impl Player {
     pub fn toggle_show_options(&mut self) {
         self.show_options = !self.show_options;
     }
+
+    pub fn get_song_title(&self) -> Option<&str> {
+        self.song_info
+            .as_ref()
+            .map(|nfo| nfo.title.as_str())
+    }
 }
 
 fn icon_style_volume(theme: &Theme, _status: svg::Status) -> svg::Style {
@@ -247,7 +253,8 @@ fn icon_style_volume(theme: &Theme, _status: svg::Status) -> svg::Style {
 
 fn icon_style_button(theme: &Theme, _status: svg::Status) -> svg::Style {
     let pal = theme.extended_palette();
-    // actually a label would be primary.strong.text
+    // actually a label would be primary.strong.text, but this
+    // looks to intense for our svgs
     let color = pal.primary.base.text;
     svg::Style { color: Some(color) }
 }

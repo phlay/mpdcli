@@ -9,9 +9,9 @@ use crate::mpd::Cmd;
 
 #[derive(Clone)]
 pub struct SongInfo {
-    title: String,
-    artist: String,
-    album: String,
+    pub title: String,
+    pub artist: String,
+    pub album: String,
     url: String,
     coverart: Option<image::Handle>,
     missing_cover: bool,
