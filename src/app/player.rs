@@ -99,20 +99,20 @@ impl Player {
             .spacing(40)
             .align_y(Center)
             .push(widget::button(icon_prev)
-                .style(button_style)
+                .style(button_style(3))
                 .on_press(Cmd::Prev)
             )
             .push(if self.is_playing() {
                 widget::button(icon_pause)
-                    .style(button_style)
+                    .style(button_style(5))
                     .on_press(Cmd::Pause)
             } else {
                 widget::button(icon_play)
-                    .style(button_style)
+                    .style(button_style(5))
                     .on_press(Cmd::Play)
             })
             .push(widget::button(icon_next)
-                .style(button_style)
+                .style(button_style(3))
                 .on_press(Cmd::Next)
             );
 
@@ -166,7 +166,7 @@ impl Player {
                 .on_toggle(Cmd::SetRandom)
             )
             .push(widget::toggler(s.repeat)
-                .label("repeat")
+                .label("loop")
                 .text_size(12)
                 .on_toggle(Cmd::SetRepeat)
             )
@@ -222,6 +222,24 @@ impl Player {
             .and_then(|status| status.next_song.map(|x| x.1))
     }
 
+    pub fn get_random(&self) -> Option<bool> {
+        self.status
+            .as_ref()
+            .map(|status| status.random)
+    }
+
+    pub fn get_loop(&self) -> Option<bool> {
+        self.status
+            .as_ref()
+            .map(|status| status.repeat)
+    }
+
+    pub fn get_consume(&self) -> Option<bool> {
+        self.status
+            .as_ref()
+            .map(|status| status.consume)
+    }
+
     pub fn toggle_show_song_info(&mut self) {
         self.show_song_info = !self.show_song_info;
     }
@@ -259,9 +277,14 @@ fn icon_style_button(theme: &Theme, _status: svg::Status) -> svg::Style {
     svg::Style { color: Some(color) }
 }
 
-fn button_style(theme: &Theme, status: button::Status) -> button::Style {
-    button::Style {
-        border: iced::border::rounded(5),
-        ..button::primary(theme, status)
+fn button_style(radius: impl Into<iced::border::Radius>)
+    -> impl Fn(&Theme, button::Status) -> button::Style
+{
+    let r = radius.into();
+    move |theme, status| {
+        button::Style {
+            border: iced::border::rounded(r),
+            ..button::primary(theme, status)
+        }
     }
 }

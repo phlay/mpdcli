@@ -54,7 +54,7 @@ impl Progress {
                     ..progress_bar::primary(theme)
                 }
             })
-            .height(50)
+            .height(45)
             .width(320);
 
         let timing = row![

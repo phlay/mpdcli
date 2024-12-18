@@ -15,15 +15,25 @@ use super::player::Player;
 use super::queue::Queue;
 
 #[derive(Debug, Clone)]
+pub enum Toggle {
+    ShowOptions,
+    ShowSongInfo,
+    ShowCoverArt,
+    ShowProgress,
+
+    Play,
+
+    Random,
+    Loop,
+    Consume,
+}
+
+#[derive(Debug, Clone)]
 pub enum ConMsg {
     Change(Subsystem),
     Player(Cmd),
     Redraw,
-    ToggleShowOptions,
-    ToggleShowSongInfo,
-    ToggleShowCoverart,
-    ToggleShowProgress,
-    TogglePlay,
+    Toggle(Toggle),
     CmdResult(CmdResult),
     UpdateSongInfo(Status),
     UpdateQueue(Vec<SongInQueue>),
@@ -89,39 +99,7 @@ impl Connected {
 
             ConMsg::Redraw => Task::none(),
 
-            ConMsg::ToggleShowOptions => {
-                self.player.toggle_show_options();
-                Task::none()
-            }
-
-            ConMsg::ToggleShowSongInfo => {
-                self.player.toggle_show_song_info();
-                Task::none()
-            }
-
-            ConMsg::ToggleShowCoverart => {
-                self.player.toggle_show_coverart();
-                Task::none()
-            }
-
-            ConMsg::ToggleShowProgress => {
-                self.player.toggle_show_progress();
-                Task::none()
-            }
-
-            ConMsg::TogglePlay => {
-                let cmd = if self.player.is_playing() {
-                    Cmd::Pause
-                } else {
-                    Cmd::Play
-                };
-                let cc = self.ctrl.clone();
-                Task::perform(
-                    async move { cc.command(cmd).await },
-                    |result| Ok(ConMsg::CmdResult(result)),
-                )
-            }
-
+            ConMsg::Toggle(t) => self.toggle(t),
 
             ConMsg::UpdateSongInfo(status) => {
                 tracing::debug!("update song information");
@@ -265,5 +243,68 @@ impl Connected {
                 Err(error) => Err(error),
             }
         )
+    }
+
+    fn toggle(&mut self, toggle: Toggle) -> Task<Result<ConMsg, Error>> {
+        let cc = self.ctrl.clone();
+        let cmd = match toggle {
+            Toggle::ShowOptions => {
+                self.player.toggle_show_options();
+                None
+            }
+            Toggle::ShowSongInfo => {
+                self.player.toggle_show_song_info();
+                None
+            }
+            Toggle::ShowCoverArt => {
+                self.player.toggle_show_coverart();
+                None
+            }
+            Toggle::ShowProgress => {
+                self.player.toggle_show_progress();
+                None
+            }
+
+            Toggle::Random => {
+                self.player
+                    .get_random()
+                    .map(|flag| Task::perform(
+                        async move { cc.command(Cmd::SetRandom(!flag)).await },
+                        |result| Ok(ConMsg::CmdResult(result)),
+                    ))
+            }
+
+            Toggle::Loop => {
+                self.player
+                    .get_loop()
+                    .map(|flag| Task::perform(
+                        async move { cc.command(Cmd::SetRepeat(!flag)).await },
+                        |result| Ok(ConMsg::CmdResult(result)),
+                    ))
+            }
+
+            Toggle::Consume => {
+                self.player
+                    .get_consume()
+                    .map(|flag| Task::perform(
+                        async move { cc.command(Cmd::SetConsume(!flag)).await },
+                        |result| Ok(ConMsg::CmdResult(result)),
+                    ))
+            }
+
+            Toggle::Play => {
+                let cmd = if self.player.is_playing() {
+                    Cmd::Pause
+                } else {
+                    Cmd::Play
+                };
+                Some(Task::perform(
+                    async move { cc.command(cmd).await },
+                    |result| Ok(ConMsg::CmdResult(result)),
+                ))
+            }
+        };
+
+        cmd.unwrap_or(Task::none())
     }
 }

@@ -130,28 +130,31 @@ impl App {
     fn subscribe_keyboard(&self) -> Subscription<AppMsg> {
         use iced::keyboard::{Key, Modifiers, key::Named};
         use crate::mpd::Cmd;
+        use connected::Toggle;
 
         iced::keyboard::on_key_press(|k, m| {
             match (k, m) {
-                (Key::Character(v), Modifiers::CTRL) if v == "q"
-                    => Some(AppMsg::Quit),
                 (Key::Named(Named::Escape), _)
                     => Some(AppMsg::Quit),
-                (Key::Character(v), _) if v == "f" || v == "n"
-                    => Some(AppMsg::Operate(ConMsg::Player(Cmd::Next))),
-                (Key::Character(v), _) if v == "b"
-                    => Some(AppMsg::Operate(ConMsg::Player(Cmd::Prev))),
-                (Key::Character(v), _) if v == "o"
-                    => Some(AppMsg::Operate(ConMsg::ToggleShowOptions)),
-                (Key::Character(v), _) if v == "i"
-                    => Some(AppMsg::Operate(ConMsg::ToggleShowSongInfo)),
-                (Key::Character(v), _) if v == "c"
-                    => Some(AppMsg::Operate(ConMsg::ToggleShowCoverart)),
-                (Key::Character(v), _) if v == "p"
-                    => Some(AppMsg::Operate(ConMsg::ToggleShowProgress)),
-                (Key::Named(Named::Space), _)
-                    => Some(AppMsg::Operate(ConMsg::TogglePlay)),
 
+                (Key::Named(Named::Space), _)
+                    => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::Play))),
+
+                (Key::Character(v), Modifiers::CTRL) if v == "q"
+                    => Some(AppMsg::Quit),
+
+                (Key::Character(key), _) => match key.as_str() {
+                    "f" | "n" => Some(AppMsg::Operate(ConMsg::Player(Cmd::Next))),
+                    "b" => Some(AppMsg::Operate(ConMsg::Player(Cmd::Prev))),
+                    "o" => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::ShowOptions))),
+                    "i" => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::ShowSongInfo))),
+                    "a" => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::ShowCoverArt))),
+                    "p" => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::ShowProgress))),
+                    "r" => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::Random))),
+                    "l" => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::Loop))),
+                    "c" => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::Consume))),
+                    _ => None,
+                },
 
                 _ => None,
             }
