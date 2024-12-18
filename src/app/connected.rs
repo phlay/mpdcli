@@ -31,10 +31,10 @@ pub enum Toggle {
 #[derive(Debug, Clone)]
 pub enum ConMsg {
     Change(Subsystem),
-    Player(Cmd),
+    Cmd(Cmd),
+    CmdResult(CmdResult),
     Redraw,
     Toggle(Toggle),
-    CmdResult(CmdResult),
     UpdateSongInfo(Status),
     UpdateQueue(Vec<SongInQueue>),
     UpdateStatus(Status),
@@ -82,7 +82,7 @@ impl Connected {
                 }
             }
 
-            ConMsg::Player(cmd) => {
+            ConMsg::Cmd(cmd) => {
                 // to make the volume slider react faster we inject the
                 // user requested volume back before the server supplies
                 // us with the real value (which should be identical).
@@ -95,6 +95,14 @@ impl Connected {
                     async move { cc.command(cmd).await },
                     |result| Ok(ConMsg::CmdResult(result)),
                 )
+            }
+
+            ConMsg::CmdResult(CmdResult { cmd, error }) => {
+                tracing::debug!("command {cmd:?} completed");
+                if let Some(msg) = error {
+                    tracing::warn!("command {cmd:?} returned error: {msg}");
+                }
+                Task::none()
             }
 
             ConMsg::Redraw => Task::none(),
@@ -167,19 +175,11 @@ impl Connected {
                     }
                 }
             }
-
-            ConMsg::CmdResult(CmdResult { cmd, error }) => {
-                tracing::debug!("command {cmd:?} completed");
-                if let Some(msg) = error {
-                    tracing::warn!("command {cmd:?} returned error: {msg}");
-                }
-                Task::none()
-            }
         }
     }
 
     pub fn view(&self) -> Element<ConMsg> {
-        self.player.view().map(ConMsg::Player)
+        self.player.view().map(ConMsg::Cmd)
     }
 
     pub fn request_queue(&self) -> Task<Result<ConMsg, Error>> {

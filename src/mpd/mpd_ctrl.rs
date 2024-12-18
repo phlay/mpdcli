@@ -1,3 +1,4 @@
+use std::time::Duration;
 use bytes::BytesMut;
 use mpd_client::{
     Client,
@@ -19,6 +20,8 @@ pub enum Cmd {
     SetRandom(bool),
     SetRepeat(bool),
     SetConsume(bool),
+    SkipForward(Duration),
+    SkipBackward(Duration),
 }
 
 #[derive(Clone, Debug)]
@@ -94,6 +97,22 @@ impl MpdCtrl {
             Cmd::SetConsume(b) => {
                 self.client
                     .command(commands::SetConsume(b))
+                    .await
+                    .err()
+            }
+
+            Cmd::SkipForward(d) => {
+                use mpd_client::commands::SeekMode;
+                self.client
+                    .command(commands::Seek(SeekMode::Forward(d)))
+                    .await
+                    .err()
+            }
+
+            Cmd::SkipBackward(d) => {
+                use mpd_client::commands::SeekMode;
+                self.client
+                    .command(commands::Seek(SeekMode::Backward(d)))
                     .await
                     .err()
             }

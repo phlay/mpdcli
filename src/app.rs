@@ -140,12 +140,30 @@ impl App {
                 (Key::Named(Named::Space), _)
                     => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::Play))),
 
+                (Key::Named(Named::ArrowLeft), mods) => {
+                    let d = match mods {
+                        Modifiers::SHIFT => Duration::from_secs(30),
+                        Modifiers::CTRL => Duration::from_secs(300),
+                        _ => Duration::from_secs(10),
+                    };
+                    Some(AppMsg::Operate(ConMsg::Cmd(Cmd::SkipBackward(d))))
+                }
+
+                (Key::Named(Named::ArrowRight), mods) => {
+                    let d = match mods {
+                        Modifiers::SHIFT => Duration::from_secs(30),
+                        Modifiers::CTRL => Duration::from_secs(300),
+                        _ => Duration::from_secs(10),
+                    };
+                    Some(AppMsg::Operate(ConMsg::Cmd(Cmd::SkipForward(d))))
+                }
+
                 (Key::Character(v), Modifiers::CTRL) if v == "q"
                     => Some(AppMsg::Quit),
 
                 (Key::Character(key), _) => match key.as_str() {
-                    "f" | "n" => Some(AppMsg::Operate(ConMsg::Player(Cmd::Next))),
-                    "b" => Some(AppMsg::Operate(ConMsg::Player(Cmd::Prev))),
+                    "f" | "n" => Some(AppMsg::Operate(ConMsg::Cmd(Cmd::Next))),
+                    "b" => Some(AppMsg::Operate(ConMsg::Cmd(Cmd::Prev))),
                     "o" => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::ShowOptions))),
                     "i" => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::ShowSongInfo))),
                     "a" => Some(AppMsg::Operate(ConMsg::Toggle(Toggle::ShowCoverArt))),
