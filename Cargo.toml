@@ -2,7 +2,7 @@
 name = "mpdcli"
 version = "0.1.0"
 edition = "2021"
-licence = "MIT"
+license = "MIT"
 
 [dependencies]
 tracing = "0.1"
