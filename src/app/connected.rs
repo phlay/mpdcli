@@ -83,11 +83,12 @@ impl Connected {
             }
 
             ConMsg::Cmd(cmd) => {
-                // to make the volume slider react faster we inject the
-                // user requested volume back before the server supplies
-                // us with the real value (which should be identical).
+                // to make the volume and position slider react faster we
+                // inject the user requested value back before the server
+                // supplies us with the real value (which should be identical).
                 match cmd {
                     Cmd::SetVolume(vol) => self.player.set_volume(vol),
+                    Cmd::Seek(d) => self.player.set_elapsed(d),
                     _ => (),
                 }
 

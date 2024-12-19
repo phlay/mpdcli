@@ -23,46 +23,33 @@ impl Progress {
     }
 
     pub fn view(&self) -> iced::Element<'_, Cmd> {
-        use iced::widget::{progress_bar, text, row, column};
-        use iced::Fill;
+        use iced::widget::slider;
 
         let duration = self.duration.as_secs_f32();
+        let elapsed = self.elapsed();
 
-        let elapsed = if let Some(time) = self.timestamp {
-            let delta = Instant::now().duration_since(time);
-            (self.elapsed + delta).as_secs_f32()
-        } else {
-            self.elapsed.as_secs_f32()
-        };
+        slider(0.0..=duration, elapsed, |s| Cmd::Seek(Duration::from_secs_f32(s)))
+            .into()
+    }
 
-        let remaining = if elapsed < duration {
-            duration - elapsed
-        } else {
-            0.0
-        };
+    pub fn timing(&self) -> String {
+        let (ela_min, ela_sec) = split_min_secs(self.elapsed());
+        let (dur_min, dur_sec) = split_min_secs(self.duration.as_secs_f32());
+        format!("{ela_min}:{ela_sec:02} / {dur_min}:{dur_sec:02}")
+    }
 
-        let bar = progress_bar(0.0..=duration, elapsed)
-            .style(|theme| {
-                progress_bar::Style {
-                    border: iced::border::rounded(5),
-                    ..progress_bar::primary(theme)
-                }
+    fn elapsed(&self) -> f32 {
+        self.timestamp
+            .map(|time| {
+                let delta = Instant::now().duration_since(time);
+                (self.elapsed + delta).as_secs_f32()
             })
-            .height(45)
-            .width(320);
-
-        let timing = row![
-                text(show_min_secs(elapsed)).size(12).width(Fill),
-                text(show_min_secs(-remaining)).size(12),
-            ]
-            .width(320);
-
-        column![bar, timing].spacing(3).into()
+            .unwrap_or(self.elapsed.as_secs_f32())
     }
 }
 
-fn show_min_secs(secs: f32) -> String {
+fn split_min_secs(secs: f32) -> (i32, i32) {
     let sgn = secs.signum() as i32;
     let n = secs.abs().round() as i32;
-    format!("{}:{:02}", sgn * n / 60, n % 60)
+    (sgn * n / 60, n % 60)
 }

@@ -19,29 +19,14 @@ pub struct SongInfo {
 
 impl SongInfo {
     pub fn view(&self, show_info: bool, show_art: bool) -> Element<Cmd> {
-        use iced::{font, widget, border, Font, Center};
+        use iced::{font, widget, Font, Center, Fill};
 
-        let coverart: Option<Element<_>> = if show_art {
-            Some(self.coverart
-                .as_ref()
-                .map(|handle| image(handle.clone())
-                    .height(220)
-                    .into()
-                )
-                .unwrap_or(widget::container("")
-                    .center(220)
-                    .style(|theme| widget::container::Style {
-                        border: border::rounded(5),
-                        ..widget::container::rounded_box(theme)
-                    })
-                    .into()
-                )
-            )
-        } else {
-            None
-        };
+        let coverart = self.coverart
+            .as_ref()
+            .filter(|_| show_art)
+            .map(|handle| image(handle.clone()).height(Fill));
 
-        let description: Option<Element<_>> = if show_info {
+        let description = if show_info {
             let title = widget::text(&self.title)
                 .size(26)
                 .font(Font { weight: font::Weight::Bold, ..Font::default() });
@@ -56,14 +41,15 @@ impl SongInfo {
                 .push(title)
                 .push(artist)
                 .push(album)
-                .into())
+            )
         } else {
             None
         };
 
         widget::Column::new()
             .align_x(Center)
-            .spacing(40)
+            .spacing(20)
+            .padding(20)
             .push_maybe(coverart)
             .push_maybe(description)
             .into()
