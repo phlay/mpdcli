@@ -41,13 +41,7 @@ impl Progress {
             0.0
         };
 
-        let progress = if duration > 0.1 {
-            elapsed  / duration
-        } else {
-            0.0
-        };
-
-        let bar = progress_bar(0.0..=1.0, progress)
+        let bar = progress_bar(0.0..=duration, elapsed)
             .style(|theme| {
                 progress_bar::Style {
                     border: iced::border::rounded(5),
@@ -58,9 +52,10 @@ impl Progress {
             .width(320);
 
         let timing = row![
-            text(show_min_secs(elapsed)).size(12).width(Fill),
-            text(show_min_secs(-remaining)).size(12),
-        ].width(320);
+                text(show_min_secs(elapsed)).size(12).width(Fill),
+                text(show_min_secs(-remaining)).size(12),
+            ]
+            .width(320);
 
         column![bar, timing].spacing(3).into()
     }

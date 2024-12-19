@@ -86,8 +86,9 @@ impl Connected {
                 // to make the volume slider react faster we inject the
                 // user requested volume back before the server supplies
                 // us with the real value (which should be identical).
-                if let Cmd::SetVolume(vol) = cmd {
-                    self.player.set_volume(vol);
+                match cmd {
+                    Cmd::SetVolume(vol) => self.player.set_volume(vol),
+                    _ => (),
                 }
 
                 let cc = self.ctrl.clone();

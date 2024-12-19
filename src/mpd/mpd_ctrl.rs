@@ -22,6 +22,7 @@ pub enum Cmd {
     SetConsume(bool),
     SkipForward(Duration),
     SkipBackward(Duration),
+    Seek(Duration),
 }
 
 #[derive(Clone, Debug)]
@@ -113,6 +114,14 @@ impl MpdCtrl {
                 use mpd_client::commands::SeekMode;
                 self.client
                     .command(commands::Seek(SeekMode::Backward(d)))
+                    .await
+                    .err()
+            }
+
+            Cmd::Seek(d) => {
+                use mpd_client::commands::SeekMode;
+                self.client
+                    .command(commands::Seek(SeekMode::Absolute(d)))
                     .await
                     .err()
             }
