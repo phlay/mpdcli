@@ -88,6 +88,7 @@ impl Connected {
                 // us with the real value (which should be identical).
                 match cmd {
                     Cmd::SetVolume(vol) => self.player.set_volume(vol),
+                    Cmd::Seek(d) => self.player.set_elapsed(d),
                     _ => (),
                 }
 
