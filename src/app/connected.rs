@@ -103,8 +103,10 @@ impl Connected {
                 tracing::debug!("command {cmd:?} completed");
                 if let Some(msg) = error {
                     tracing::warn!("command {cmd:?} returned error: {msg}");
+                    self.request_status()
+                } else {
+                    Task::none()
                 }
-                Task::none()
             }
 
             ConMsg::Redraw => Task::none(),
