@@ -111,23 +111,23 @@ impl Player {
                 .align_y(Center)
                 .push(widget::button(icon_prev)
                     .style(button_style)
-                    .width(40)
+                    .width(38)
                     .on_press(Cmd::Prev)
                 )
                 .push(if self.is_playing() {
                     widget::button(icon_pause)
                         .style(button_style)
-                        .width(48)
+                        .width(50)
                         .on_press(Cmd::Pause)
                 } else {
                     widget::button(icon_play)
                         .style(button_style)
-                        .width(48)
+                        .width(50)
                         .on_press(Cmd::Play)
                 })
                 .push(widget::button(icon_next)
                     .style(button_style)
-                    .width(40)
+                    .width(38)
                     .on_press(Cmd::Next)
                 )
         };
@@ -150,19 +150,29 @@ impl Player {
         };
 
         let control_bar = {
+            use iced::widget::Container;
+
             let timing = self.progress
                 .as_ref()
                 .map(|p| p.timing())
                 .unwrap_or(String::new());
 
-            use iced::widget::Container;
+            let volume_container = Container::new(volume_slider)
+                .height(40)
+                .align_y(Center)
+                .align_right(Fill);
 
             widget::Row::new()
-                .align_y(Center)
                 .push(Container::new(widget::text(timing)).align_left(Fill))
                 .push(media_buttons)
-                .push(Container::new(volume_slider).align_right(Fill))
+                .push(volume_container)
         };
+
+
+        let progress_and_control_bar = widget::Column::new()
+            .spacing(3)
+            .push_maybe(progress_bar)
+            .push(control_bar);
 
         let option_togglers = self.status
             .as_ref()
@@ -189,12 +199,11 @@ impl Player {
 
         widget::Column::new()
             .align_x(Center)
-            .spacing(10)
+            .spacing(25)
             .padding(20)
             .push_maybe(option_togglers)
             .push(widget::center(song_info))
-            .push_maybe(progress_bar)
-            .push(control_bar)
+            .push(progress_and_control_bar)
             .into()
     }
 

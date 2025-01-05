@@ -8,6 +8,8 @@ pub struct Progress {
 }
 
 impl Progress {
+    const HEIGHT: u16 = 16;
+
     pub fn new(elapsed: Duration, duration: Duration, playing: bool) -> Self {
         let timestamp = if playing {
             Some(Instant::now())
@@ -28,7 +30,19 @@ impl Progress {
         let duration = self.duration.as_secs_f32();
         let elapsed = self.elapsed();
 
+        // Create a slider and style it to look more like a progress bar
         slider(0.0..=duration, elapsed, |s| Cmd::Seek(Duration::from_secs_f32(s)))
+            .height(Self::HEIGHT)
+            .style(|theme, status| {
+                let mut style = slider::default(theme, status);
+                style.rail.width = Self::HEIGHT as f32;
+                style.handle.shape = slider::HandleShape::Rectangle {
+                    width: 1,
+                    border_radius: 0.0.into(),
+                };
+
+                style
+            })
             .into()
     }
 

@@ -36,7 +36,6 @@ impl SongInfo {
                 .size(16);
 
             Some(widget::Column::new()
-                .padding(15)
                 .spacing(5)
                 .align_x(Center)
                 .push(title)
@@ -49,7 +48,7 @@ impl SongInfo {
 
         widget::Column::new()
             .align_x(Center)
-            .spacing(20)
+            .spacing(25)
             .push_maybe(coverart)
             .push_maybe(description)
             .into()
